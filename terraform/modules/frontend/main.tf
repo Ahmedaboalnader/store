@@ -1,4 +1,3 @@
-# Artifact Registry (لصور الفرونت)
 resource "google_artifact_registry_repository" "frontend_repo" {
   provider     = google
   location     = var.region
@@ -33,7 +32,6 @@ resource "google_cloud_run_service" "frontend_service" {
   }
 }
 
-# Allow Public Access (لأي زائر)
 resource "google_cloud_run_service_iam_member" "frontend_public_access" {
   location = var.region
   service  = google_cloud_run_service.frontend_service.name
@@ -41,7 +39,6 @@ resource "google_cloud_run_service_iam_member" "frontend_public_access" {
   member   = "allUsers"
 }
 
-# Load Balancer (اختياري لتثبيت الـ DNS)
 resource "google_compute_region_network_endpoint_group" "frontend_neg" {
   name                  = "${var.service_name}-neg"
   region                = var.region
