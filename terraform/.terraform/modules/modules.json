@@ -1,1 +1,0 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"backend","Source":"./modules/backend","Dir":"modules/backend"},{"Key":"cloudsql","Source":"./modules/database","Dir":"modules/database"},{"Key":"frontend","Source":"./modules/frontend","Dir":"modules/frontend"},{"Key":"vpc","Source":"./modules/vpc","Dir":"modules/vpc"}]}
