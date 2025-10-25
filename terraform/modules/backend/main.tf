@@ -1,4 +1,3 @@
-# Artifact Registry (لحفظ صور الـ Docker)
 resource "google_artifact_registry_repository" "backend_repo" {
   provider      = google
   location      = var.region
