@@ -1,0 +1,202 @@
+name: Full deploy (infra -> backend -> frontend)
+
+on:
+  push:
+    branches: [ main ]
+    # لو عايز تجرّب على فرع تاني عدل هنا
+  workflow_dispatch:
+
+env:
+  TF_DIR: infra
+  SERVICES_DIR: services
+  BACKEND_DIR: backend
+  FRONTEND_DIR: frontend
+
+jobs:
+  deploy-all:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'services/**/backend/**'
+            frontend:
+              - 'frontend/**'
+              - 'services/**/frontend/**'
+            infra:
+              - 'infra/**'
+              - 'modules/**'
+
+      # --- Authenticate to GCP using service account stored in GitHub Secrets ---
+      - name: Authenticate to GCP
+        id: gcloud-auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure gcloud project & region
+        run: |
+          gcloud config set project ${{ secrets.GCP_PROJECT }}
+          gcloud config set run/region ${{ secrets.GCP_REGION }}
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ---------------------------
+      # 1) Infra: init/plan/apply
+      # ---------------------------
+      - name: Terraform init (infra)
+        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "==> Terraform init (infra)"
+          cd $TF_DIR
+          terraform init -input=false
+
+      - name: Terraform plan (infra)
+        id: tfplan
+        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd $TF_DIR
+          # create plan and detect if there are changes (exit code 2 => changes, 0 => no changes)
+          terraform plan -out=tfplan -input=false || true
+          terraform show -json tfplan > tfplan.json || true
+          terraform output -json > tf-outputs.json || true
+        continue-on-error: true
+
+      - name: Terraform apply (infra) (only if plan has changes or no state)
+        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd $TF_DIR
+          # run apply; -auto-approve for non-interactive
+          terraform apply -auto-approve
+
+      - name: Save terraform outputs to workspace
+        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd $TF_DIR
+          terraform output -json > tf-outputs.json
+          cp tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
+
+      # If infra didn't change this run, but we still need outputs, try to read existing outputs file
+      - name: Ensure tf-outputs.json exists
+        if: steps.changes.outputs.infra != 'true' && !contains(fromJSON('[]'), github.event_name)
+        run: |
+          if [ -f "$TF_DIR/tf-outputs.json" ]; then
+            cp $TF_DIR/tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
+          elif [ -f "./tf-outputs.json" ]; then
+            echo "Using tf-outputs.json in repo root"
+          else
+            echo "No tf-outputs.json found in infra dir or repo root. Running terraform output in infra dir..."
+            cd $TF_DIR
+            terraform init -input=false || true
+            terraform output -json > ../tf-outputs.json || true
+            cd ..
+          fi
+
+      - name: Show terraform outputs (debug)
+        run: |
+          echo "== TF outputs: =="
+          jq . tf-outputs.json || true
+
+      # Parse important outputs into environment variables
+      - name: Parse TF outputs into env
+        id: parse_tf
+        run: |
+          DB_IP=$(jq -r '.db_private_ip.value // empty' tf-outputs.json)
+          BACKEND_REPO=$(jq -r '.backend_repo.value // empty' tf-outputs.json)
+          FRONTEND_REPO=$(jq -r '.frontend_repo.value // empty' tf-outputs.json)
+          echo "DB_IP=${DB_IP}" >> $GITHUB_ENV
+          echo "BACKEND_REPO=${BACKEND_REPO}" >> $GITHUB_ENV
+          echo "FRONTEND_REPO=${FRONTEND_REPO}" >> $GITHUB_ENV
+          echo "DB_IP=${DB_IP}"
+          echo "BACKEND_REPO=${BACKEND_REPO}"
+          echo "FRONTEND_REPO=${FRONTEND_REPO}"
+
+      # 2) Build & Push Backend (
+      # ---------------------------
+      - name: Build & push backend image
+        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+        run: |
+          set -e
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
+          echo "Building backend image -> $IMAGE"
+          docker build -t "$IMAGE" ./backend
+          docker push "$IMAGE"
+          echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy backend to Cloud Run
+        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+        run: |
+          set -e
+          IMAGE="$BACKEND_IMAGE"
+          # deploy and set DB envs (do not store secrets in image)
+          gcloud run deploy store-backend \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "DB_HOST=${DB_IP},DB_USER=app_user,DB_PASS=ChangeMe123,DB_NAME=app_db"
+          BACKEND_URL=$(gcloud run services describe store-backend --region "$REGION" --format='value(status.url)')
+          echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
+          echo "Deployed backend at $BACKEND_URL"
+
+      
+      #  Build frontend 
+      # ---------------------------
+      - name: Prepare frontend env (inject backend URL)
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -e
+          echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
+          cat frontend/.env
+
+      - name: Build & push frontend image
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+        run: |
+          set -e
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
+          echo "Building frontend image -> $IMAGE"
+          docker build -t "$IMAGE" ./frontend
+          docker push "$IMAGE"
+          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy frontend to Cloud Run
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+        run: |
+          set -e
+          IMAGE="$FRONTEND_IMAGE"
+          gcloud run deploy store-frontend \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated
+          FRONTEND_URL=$(gcloud run services describe store-frontend --region "$REGION" --format='value(status.url)')
+          echo "FRONTEND_URL=${FRONTEND_URL}" >> $GITHUB_ENV
+          echo "Deployed frontend at $FRONTEND_URL"
+
+      - name: Final output
+        run: |
+          echo "=== Deployment summary ==="
+          echo "Backend URL: $BACKEND_URL"
+          echo "Frontend URL: $FRONTEND_URL"

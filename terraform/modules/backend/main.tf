@@ -1,9 +1,9 @@
-resource "google_artifact_registry_repository" "backend_repo" {
-  provider      = google
-  location      = var.region
-  repository_id = "backend-repo"
-  format        = "DOCKER"
-}
+# resource "google_artifact_registry_repository" "backend_repo" {
+#   provider      = google
+#   location      = var.region
+#   repository_id = "backend-repo"
+#   format        = "DOCKER"
+# }
 
 # Cloud Run Service (Backend)
 resource "google_cloud_run_service" "backend_service" {
