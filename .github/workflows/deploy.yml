@@ -3,12 +3,11 @@ name: Full deploy (infra -> backend -> frontend)
 on:
   push:
     branches: [ main ]
-    # لو عايز تجرّب على فرع تاني عدل هنا
   workflow_dispatch:
 
 env:
   TF_DIR: terraform/infra
-  SERVICES_DIR: services
+  SERVICES_DIR: terraform/services
   BACKEND_DIR: backend
   FRONTEND_DIR: frontend
 
@@ -31,15 +30,14 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
-              - 'services/**/backend/**'
+              - 'terraform/services/**/backend/**'
             frontend:
               - 'frontend/**'
-              - 'services/**/frontend/**'
+              - 'terraform/services/**/frontend/**'
             infra:
-              - 'infra/**'
-              - 'modules/**'
+              - 'terraform/infra/**'
+              - 'terraform/modules/**'
 
-      # --- Authenticate to GCP using service account stored in GitHub Secrets ---
       - name: Authenticate to GCP
         id: gcloud-auth
         uses: google-github-actions/auth@v1
@@ -67,17 +65,15 @@ jobs:
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          # create plan and detect if there are changes (exit code 2 => changes, 0 => no changes)
           terraform plan -out=tfplan -input=false || true
           terraform show -json tfplan > tfplan.json || true
           terraform output -json > tf-outputs.json || true
         continue-on-error: true
 
-      - name: Terraform apply (infra) (only if plan has changes or no state)
+      - name: Terraform apply (infra)
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          # run apply; -auto-approve for non-interactive
           terraform apply -auto-approve
 
       - name: Save terraform outputs to workspace
@@ -87,7 +83,6 @@ jobs:
           terraform output -json > tf-outputs.json
           cp tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
 
-      # If infra didn't change this run, but we still need outputs, try to read existing outputs file
       - name: Ensure tf-outputs.json exists
         if: steps.changes.outputs.infra != 'true' && !contains(fromJSON('[]'), github.event_name)
         run: |
@@ -96,11 +91,11 @@ jobs:
           elif [ -f "./tf-outputs.json" ]; then
             echo "Using tf-outputs.json in repo root"
           else
-            echo "No tf-outputs.json found in infra dir or repo root. Running terraform output in infra dir..."
+            echo "No tf-outputs.json found in $TF_DIR. Running terraform output manually..."
             cd $TF_DIR
             terraform init -input=false || true
-            terraform output -json > ../tf-outputs.json || true
-            cd ..
+            terraform output -json > tf-outputs.json || true
+            cp tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
           fi
 
       - name: Show terraform outputs (debug)
@@ -108,7 +103,6 @@ jobs:
           echo "== TF outputs: =="
           jq . tf-outputs.json || true
 
-      # Parse important outputs into environment variables
       - name: Parse TF outputs into env
         id: parse_tf
         run: |
@@ -122,7 +116,8 @@ jobs:
           echo "BACKEND_REPO=${BACKEND_REPO}"
           echo "FRONTEND_REPO=${FRONTEND_REPO}"
 
-      # 2) Build & Push Backend (
+      # ---------------------------
+      # 2) Build & Deploy Backend
       # ---------------------------
       - name: Build & push backend image
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -145,7 +140,6 @@ jobs:
         run: |
           set -e
           IMAGE="$BACKEND_IMAGE"
-          # deploy and set DB envs (do not store secrets in image)
           gcloud run deploy store-backend \
             --image "$IMAGE" \
             --region "$REGION" \
@@ -156,8 +150,8 @@ jobs:
           echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
           echo "Deployed backend at $BACKEND_URL"
 
-      
-      #  Build frontend 
+      # ---------------------------
+      # 3) Build & Deploy Frontend
       # ---------------------------
       - name: Prepare frontend env (inject backend URL)
         if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
