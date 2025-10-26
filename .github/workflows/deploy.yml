@@ -84,7 +84,6 @@ jobs:
           cp tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
 
       - name: Ensure tf-outputs.json exists
-        if: steps.changes.outputs.infra != 'true' && !contains(fromJSON('[]'), github.event_name)
         run: |
           if [ -f "$TF_DIR/tf-outputs.json" ]; then
             cp $TF_DIR/tf-outputs.json $GITHUB_WORKSPACE/tf-outputs.json
