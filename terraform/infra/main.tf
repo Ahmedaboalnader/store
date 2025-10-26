@@ -16,6 +16,16 @@
 #   project = var.project_id
 #   region  = var.region
 # }
+resource "google_project_service" "enable_apis" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "servicenetworking.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "sqladmin.googleapis.com", 
+  ])
+  service = each.key
+}
+
 
 module "vpc" {
   source              = "../modules/vpc"
