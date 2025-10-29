@@ -1,9 +1,9 @@
-resource "google_artifact_registry_repository" "frontend_repo" {
-  provider     = google
-  location     = var.region
-  repository_id = "frontend-repo"
-  format       = "DOCKER"
-}
+# resource "google_artifact_registry_repository" "frontend_repo" {
+#   provider     = google
+#   location     = var.region
+#   repository_id = "frontend-repo"
+#   format       = "DOCKER"
+# }
 
 # Cloud Run Service (Frontend)
 resource "google_cloud_run_service" "frontend_service" {
@@ -12,7 +12,7 @@ resource "google_cloud_run_service" "frontend_service" {
 
   template {
     spec {
-      timeout_seconds = 500
+      timeout_seconds = 10
       containers {
         image = var.image
         ports {

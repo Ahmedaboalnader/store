@@ -1,21 +1,4 @@
-# terraform {
-#   required_providers {
-#     google = {
-#       source  = "hashicorp/google"
-#       version = "~> 5.0"
-#     }
-#   }
 
-#   backend "gcs" {
-#     bucket = "store-terraform-state"
-#     prefix = "infra"
-#   }
-# }
-
-# provider "google" {
-#   project = var.project_id
-#   region  = var.region
-# }
 resource "google_project_service" "enable_apis" {
   for_each = toset([
     "compute.googleapis.com",
