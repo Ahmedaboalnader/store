@@ -85,7 +85,7 @@ jobs:
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          terraform destroy -auto-approve
+          terraform apply -auto-approve
 
       - name: Save terraform outputs to workspace
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
