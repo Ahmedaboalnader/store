@@ -1,13 +1,19 @@
-
-
 # Cloud Run Service (Backend)
 resource "google_cloud_run_service" "backend_service" {
   name     = var.service_name
   location = var.region
 
   template {
+    metadata {
+      annotations = {
+        "run.googleapis.com/vpc-access-connector" = var.vpc_connector_id
+      }
+    }
+
     spec {
       timeout_seconds = 10
+
+      # ✅ containers
       containers {
         ports {
           container_port = var.port-backend
@@ -31,6 +37,8 @@ resource "google_cloud_run_service" "backend_service" {
           value = var.db_name
         }
       }
+     
+
     }
   }
 
@@ -56,6 +64,7 @@ resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
     service = google_cloud_run_service.backend_service.name
   }
 }
+
 
 # resource "google_compute_region_backend_service" "backend_service_lb" {
 #   name                  = "${var.service_name}-lb"

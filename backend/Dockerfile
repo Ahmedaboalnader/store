@@ -12,7 +12,10 @@ RUN npm install --production
 
 # انسخ باقي الملفات
 COPY . .
+ARG DB_SERVER_IP
 
+# بعد كده أخليها كمتغير بيئي داخل الكونتينر
+ENV DATABASE_HOST=$DB_SERVER_IP
 # عرّف المنفذ
 EXPOSE 5000
 

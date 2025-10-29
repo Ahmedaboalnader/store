@@ -1,5 +1,0 @@
-# project_id  = "konecta-task-467513"
-# region      = "us-central1"
-# zone        = "us-central1-a"
-# vpc_name    = "serverless-shop-vpc"
-# db_password = "ChangeThisPassword123!"

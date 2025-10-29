@@ -1,6 +1,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
+  default = "konecta-task-467513"
 }
 
 variable "region" {
@@ -31,3 +32,5 @@ variable "db_private_ip" {
   description = "Private IP of the Cloud SQL database"
   type        = string
 }
+
+

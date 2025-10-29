@@ -3,6 +3,14 @@ resource "google_compute_network" "main_vpc" {
   auto_create_subnetworks = false
 }
 
+resource "google_vpc_access_connector" "backend_connector" {
+  name          = "store-backend-connector"
+  region        = "us-central1"
+  network       = google_compute_network.vpc_network.id
+  ip_cidr_range = "10.8.0.0/28"
+}
+
+
 resource "google_compute_subnetwork" "subnet_backend" {
   name          = "${var.vpc_name}-subnet-backend"
   ip_cidr_range = var.backend_subnet_cidr

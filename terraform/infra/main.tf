@@ -33,4 +33,3 @@ module "artifact_registry" {
   source     = "../modules/artifact_registry"
   region     = var.region
 }
-

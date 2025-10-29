@@ -36,4 +36,14 @@ variable "db_password" {
 variable "port-backend" {
   description = "The backend port"
   type        = string
+} 
+
+variable "vpc_connector_id" {
+  type        = string
+  description = "ID of the VPC connector to use for Cloud Run"
+  default = ""
+
 }
+
+
+

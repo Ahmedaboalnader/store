@@ -86,6 +86,8 @@ jobs:
         run: |
           cd $TF_DIR
           terraform apply -auto-approve
+          echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
+          echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
 
       - name: Save terraform outputs to workspace
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -127,8 +129,10 @@ jobs:
           echo "FRONTEND_REPO=${FRONTEND_REPO}"
 
       # ---------------------------
-      # 2) Build & Deploy Backend
+      # 2) Build 
       # ---------------------------
+
+      #  build && push backend 
       - name: Build & push backend image
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         env:
@@ -138,10 +142,35 @@ jobs:
           set -e
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
           echo "Building backend image -> $IMAGE"
-          docker build -t "$IMAGE" ./backend
+          docker build \
+            --build-arg DB_SERVER_IP=${{ env.DATABASE_IP }} \
+            -t "$IMAGE" ./backend
           docker push "$IMAGE"
           echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+      
+      # build and push frontend
+       
+      - name: Prepare frontend env (inject backend URL)
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "BACKEND_URL=$(terraform output -raw backend_url)" >> $GITHUB_ENV
+          echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
 
+      - name: Build & push frontend image
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+        run: |
+          set -e
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
+          echo "Building frontend image -> $IMAGE"
+          docker build --build-arg BACKEND_API_URL=${{ env.BACKEND_URL }} -t "$IMAGE" ./frontend
+          docker push "$IMAGE"
+          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV    
+      
+        
+      # Deploy backend 
       - name: Deploy backend to Cloud Run
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         env:
@@ -160,29 +189,8 @@ jobs:
           echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
           echo "Deployed backend at $BACKEND_URL"
 
-      # ---------------------------
-      # 3) Build & Deploy Frontend
-      # ---------------------------
-      - name: Prepare frontend env (inject backend URL)
-        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          set -e
-          echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
-          cat frontend/.env
-
-      - name: Build & push frontend image
-        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        env:
-          REGION: ${{ secrets.GCP_REGION }}
-          PROJECT: ${{ secrets.GCP_PROJECT }}
-        run: |
-          set -e
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
-          echo "Building frontend image -> $IMAGE"
-          docker build -t "$IMAGE" ./frontend
-          docker push "$IMAGE"
-          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
-
+      # Deploy Frontend
+      
       - name: Deploy frontend to Cloud Run
         if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         env:
