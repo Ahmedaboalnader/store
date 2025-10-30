@@ -14,5 +14,5 @@ output "database_subnet" {
 }
 
 output "backend_connector_id" {
-  value = google_vpc_access_connector.backend_connector.id
+  value = google_vpc_access_connector.cloud_run_connector.id
 }

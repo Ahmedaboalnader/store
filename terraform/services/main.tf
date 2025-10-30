@@ -1,3 +1,11 @@
+module "vpc" {
+  source = "../modules/vpc"
+  region = "us-central1"
+  vpc_name = "store-vpc"
+  backend_subnet_cidr = "10.0.2.0/24"
+  database_subnet_cidr = "10.0.3.0/24"
+}
+
 module "backend" {
   source        = "../modules/backend"
   region        = "us-central1"
@@ -9,7 +17,7 @@ module "backend" {
   db_user       = "app_user"
   db_password   = "ChangeMe123"
   # project_id    = "konecta-task-467513"
-  vpc_connector = "projects/konecta-task-467513/locations/us-central1/connectors/store-vpc-connector"
+  vpc_connector = module.vpc.backend_connector_id
 } 
 
 module "frontend" {
