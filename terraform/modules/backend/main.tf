@@ -69,19 +69,3 @@ resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
     service = google_cloud_run_service.backend_service.name
   }
 }
-
-
-# resource "google_compute_region_backend_service" "backend_service_lb" {
-#   name                  = "${var.service_name}-lb"
-#   region                = var.region
-#   load_balancing_scheme = "EXTERNAL_MANAGED"
-#   protocol              = "HTTP"
-
-#   backend {
-#     group           = google_compute_region_network_endpoint_group.cloudrun_neg.id
-#     capacity_scaler = 1.0
-#   }
-# }
-
-
-
