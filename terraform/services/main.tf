@@ -17,8 +17,11 @@ module "backend" {
   db_user       = "app_user"
   db_password   = "ChangeMe123"
   # project_id    = "konecta-task-467513"
-  vpc_connector = module.vpc.backend_connector_id
-} 
+  vpc_connector = "projects/konecta-task-467513/locations/us-central1/connectors/cloud_run_connector"
+
+  }
+
+
 
 module "frontend" {
   source        = "../modules/frontend"

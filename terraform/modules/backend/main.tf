@@ -29,23 +29,26 @@ resource "google_cloud_run_service" "backend_service" {
           value = var.db_name
         }
       }
-     
+      vpc_access {
+      connector = var.vpc_connector
+
+  }
 
     }
     # Use annotations for autoscaling and VPC connector on Cloud Run (managed).
     # The provider's `google_cloud_run_service` resource expects these as
     # annotations rather than nested `scaling`/`vpc_access` blocks.
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
-        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
-        "run.googleapis.com/vpc-access-connector" = var.vpc_connector
-      }
-    }
+    # metadata {
+    #   annotations = {
+    #     "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
+    #     "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
+    #     "run.googleapis.com/vpc-access-connector" = var.vpc_connector
+    #   }
+    # }
 
-  }
-
- 
+   
+  
+ }
 
   traffic {
     percent         = 100
