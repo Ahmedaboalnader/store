@@ -3,13 +3,6 @@ resource "google_compute_network" "main_vpc" {
   auto_create_subnetworks = false
 }
 
-resource "google_vpc_access_connector" "backend_connector" {
-  name          = "store-backend-connector"
-  region        = "us-central1"
-  network       = google_compute_network.vpc_network.id
-  ip_cidr_range = "10.8.0.0/28"
-}
-
 
 resource "google_compute_subnetwork" "subnet_backend" {
   name          = "${var.vpc_name}-subnet-backend"
@@ -48,4 +41,13 @@ resource "google_compute_firewall" "allow_http" {
   }
 
   source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_vpc_access_connector" "cloud_run_connector" {
+  name          = "cloud-run-redis-connector"
+  region        = var.region
+  network       = google_compute_network.main_vpc.name
+  ip_cidr_range = "10.0.1.0/28"
+  min_instances = 2
+  max_instances = 5
 }

@@ -33,4 +33,3 @@ variable "db_private_ip" {
   type        = string
 }
 
-

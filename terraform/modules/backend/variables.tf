@@ -33,17 +33,32 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
-variable "port-backend" {
+variable "port_backend" {
   description = "The backend port"
-  type        = string
-} 
-
-variable "vpc_connector_id" {
-  type        = string
-  description = "ID of the VPC connector to use for Cloud Run"
-  default = ""
-
+  type        = number
 }
 
+variable "ingress" {
+  description = "Ingress type: internal or all"
+  type        = string
+  default     = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+}
 
+variable "vpc_connector" {
+  description = "Optional VPC Connector for Cloud Run"
+  type        = string
+  default     = ""
+}
+
+variable "min_instances" {
+  description = "Minimum number of instances"
+  type        = number
+  default     = 1
+}
+
+variable "max_instances" {
+  description = "Maximum number of instances"
+  type        = number
+  default     = 3
+}
 

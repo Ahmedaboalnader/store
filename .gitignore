@@ -1,2 +1,3 @@
 .terraform/
 gcp-key.json
+.yoyo/

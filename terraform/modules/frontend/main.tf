@@ -16,7 +16,7 @@ resource "google_cloud_run_service" "frontend_service" {
       containers {
         image = var.image
         ports {
-          container_port = var.port-frontend
+          container_port = var.port_frontend
         }
         env {
           name  = "REACT_APP_API_URL"

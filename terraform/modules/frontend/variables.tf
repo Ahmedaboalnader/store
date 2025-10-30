@@ -17,7 +17,7 @@ variable "backend_url" {
   description = "The backend URL for API communication"
   type        = string
 }
- variable "port-frontend" {
+variable "port_frontend" {
   description = "The frontend port"
-  type        = string
+  type        = number
 }
