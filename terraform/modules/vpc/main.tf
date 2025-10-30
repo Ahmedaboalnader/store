@@ -47,7 +47,7 @@ resource "google_vpc_access_connector" "cloud_run_connector" {
   name          = "cloud-run-redis-connector"
   region        = var.region
   network       = google_compute_network.main_vpc.name
-  ip_cidr_range = "10.0.1.0/28"
+  ip_cidr_range = var.connector_ip_cidr
   min_instances = 2
   max_instances = 5
 }
