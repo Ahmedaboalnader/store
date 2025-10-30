@@ -4,7 +4,9 @@ resource "google_project_service" "enable_apis" {
     "compute.googleapis.com",
     "servicenetworking.googleapis.com",
     "artifactregistry.googleapis.com",
-    "sqladmin.googleapis.com", 
+    "sqladmin.googleapis.com",
+    "vpcaccess.googleapis.com",  # Enable Serverless VPC Access API
+    "run.googleapis.com"         # Enable Cloud Run API (if not already enabled)
   ])
   service = each.key
 }
