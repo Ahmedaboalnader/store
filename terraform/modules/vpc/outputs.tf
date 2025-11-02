@@ -12,8 +12,3 @@ output "database_subnet" {
   description = "Database subnet self link"
   value       = google_compute_subnetwork.subnet_database.self_link
 }
-
-
-output "db_private_ip" {
-  value = google_sql_database_instance.main.private_ip_address
-}
