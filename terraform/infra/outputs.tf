@@ -2,9 +2,14 @@ output "vpc_name" {
   value = module.vpc.vpc_name
 }
 
-output "db_private_ip" {
-  value = module.database.db_private_ip
+# output "db_private_ip" {
+#   value = module.database.db_private_ip
+# }
+output "database_private_ip" {
+  description = "Private IP address of the Cloud SQL instance"
+  value       = module.database.db_private_ip
 }
+
 
 output "backend_repo" {
   value = module.artifact_registry.backend_repo
