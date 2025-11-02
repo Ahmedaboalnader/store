@@ -21,8 +21,4 @@ variable "database_subnet_cidr" {
   default     = "10.0.2.0/24"
 }
 
-variable "connector_ip_cidr" {
-  description = "CIDR range for Serverless VPC Access connector (must not overlap with subnets)"
-  type        = string
-  default     = "10.0.3.0/28"
-}
+

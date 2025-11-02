@@ -14,7 +14,8 @@ output "frontend_repo" {
   value = module.artifact_registry.frontend_repo
 }
   
-
 output "vpc_connector_id" {
-  value = module.vpc.backend_connector_id
+  value = google_vpc_access_connector.backend_connector.id
+  
 }
+

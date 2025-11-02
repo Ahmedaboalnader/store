@@ -30,3 +30,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "connector_ip_cidr" {
+  description = "CIDR range"
+  type        = string
+  default     = "10.0.3.0/28"
+}

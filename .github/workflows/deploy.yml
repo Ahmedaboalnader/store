@@ -98,7 +98,7 @@ jobs:
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          terraform destroy -auto-approve
+          terraform apply -auto-approve
           echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
           echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
 

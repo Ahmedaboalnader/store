@@ -6,6 +6,13 @@ module "vpc" {
   database_subnet_cidr = "10.0.3.0/24"
 }
 
+data "terraform_remote_state" "infra" {
+  backend = "local"
+  config = {
+    path = "../infra/terraform.tfstate"
+  }
+}
+
 module "backend" {
   source        = "../modules/backend"
   region        = "us-central1"
@@ -17,7 +24,7 @@ module "backend" {
   db_user       = "app_user"
   db_password   = "ChangeMe123"
   # project_id    = "konecta-task-467513"
-  vpc_connector = "projects/konecta-task-467513/locations/us-central1/connectors/cloud_run_connector"
+  vpc_connector_id = data.terraform_remote_state.infra.outputs.vpc_connector_id
 
   }
 

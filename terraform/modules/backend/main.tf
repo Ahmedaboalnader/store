@@ -1,54 +1,38 @@
-# Cloud Run Service (Backend)
 resource "google_cloud_run_service" "backend_service" {
   name     = var.service_name
   location = var.region
 
   template {
-    spec {
-      
-      containers {
-        ports {
-          container_port = var.port_backend
-        }
-        image = var.image
+    containers {
+      image = var.image
 
-        env {
-          name  = "DB_HOST"
-          value = var.db_private_ip
-        }
-        env {
-          name  = "DB_USER"
-          value = var.db_user
-        }
-        env {
-          name  = "DB_PASS"
-          value = var.db_password
-        }
-        env {
-          name  = "DB_NAME"
-          value = var.db_name
-        }
+      ports {
+        container_port = var.port_backend
       }
-      vpc_access {
-      connector = var.vpc_connector
 
-  }
-
+      env {
+        name  = "DB_HOST"
+        value = var.db_private_ip
+      }
+      env {
+        name  = "DB_USER"
+        value = var.db_user
+      }
+      env {
+        name  = "DB_PASS"
+        value = var.db_password
+      }
+      env {
+        name  = "DB_NAME"
+        value = var.db_name
+      }
     }
-    # Use annotations for autoscaling and VPC connector on Cloud Run (managed).
-    # The provider's `google_cloud_run_service` resource expects these as
-    # annotations rather than nested `scaling`/`vpc_access` blocks.
-    # metadata {
-    #   annotations = {
-    #     "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
-    #     "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
-    #     "run.googleapis.com/vpc-access-connector" = var.vpc_connector
-    #   }
-    # }
 
-   
-  
- }
+    vpc_access {
+      connector = var.vpc_connector_id
+      egress    = "ALL_TRAFFIC"
+    }
+  }
 
   traffic {
     percent         = 100
