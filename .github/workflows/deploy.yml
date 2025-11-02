@@ -104,6 +104,7 @@ jobs:
 
       - name: Parse TF outputs into env
         run: |
+          cd $TF_DIR
           BACKEND_REPO=$(jq -r '.backend_repo.value // empty' tf-outputs.json)
           FRONTEND_REPO=$(jq -r '.frontend_repo.value // empty' tf-outputs.json)
           echo "BACKEND_REPO=${BACKEND_REPO}" >> $GITHUB_ENV
