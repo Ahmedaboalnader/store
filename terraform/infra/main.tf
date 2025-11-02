@@ -39,7 +39,7 @@ module "artifact_registry" {
 resource "google_vpc_access_connector" "cloud_run_connector" {
   name          = "cloud-run-redis-connector"
   region        = var.region
-  network       = module.vpc.network_name
+  network       = module.vpc.vpc_name
   ip_cidr_range = var.connector_ip_cidr
   min_instances = 2
   max_instances = 5
