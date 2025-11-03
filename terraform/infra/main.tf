@@ -42,8 +42,8 @@ resource "google_vpc_access_connector" "cloud_run_connector" {
   min_instances = 2
   max_instances = 5
 
-  lifecycle {
-    prevent_destroy = true
-    ignore_changes  = all
-  }
+  # lifecycle {
+  #   prevent_destroy = true
+  #   ignore_changes  = all
+  # }
 }
