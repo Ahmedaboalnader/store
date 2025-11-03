@@ -74,7 +74,6 @@ jobs:
           gcloud services enable sqladmin.googleapis.com
           # Wait for API activation to propagate (important for Service Networking API)
           echo "Waiting for APIs to be fully enabled..."
-          sleep 60
 
       # ---------------------------
       # 2) Infra: init/plan/apply
@@ -98,7 +97,7 @@ jobs:
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          terraform apply -auto-approve
+          terraform destroy -auto-approve
           echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
           echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
 
