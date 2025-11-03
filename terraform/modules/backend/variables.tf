@@ -44,11 +44,11 @@ variable "ingress" {
   default     = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 }
 
-variable "vpc_connector" {
-  description = "Optional VPC Connector for Cloud Run"
-  type        = string
-  default     = ""
-}
+# variable "vpc_connector" {
+#   description = "Optional VPC Connector for Cloud Run"
+#   type        = string
+#   default     = ""
+# }
 
 variable "min_instances" {
   description = "Minimum number of instances"
@@ -61,4 +61,10 @@ variable "max_instances" {
   type        = number
   default     = 3
 }
+
+variable "vpc_connector_id" {
+  description = "The ID of the VPC connector used by Cloud Run"
+  type        = string
+}
+
 

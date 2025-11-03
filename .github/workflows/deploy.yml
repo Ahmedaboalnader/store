@@ -110,6 +110,12 @@ jobs:
           echo "BACKEND_REPO=${BACKEND_REPO}" >> $GITHUB_ENV
           echo "FRONTEND_REPO=${FRONTEND_REPO}" >> $GITHUB_ENV
 
+      - name: db connection string
+        id: tf
+        run: |
+          cd terraform
+          terraform output -raw db_connection_string > db_conn.txt
+        
       # ---------------------------
       # 2) Build & deploy backend first
       # ---------------------------
@@ -119,49 +125,50 @@ jobs:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
         run: |
+          DATABASE_URL=$(cat terraform/db_conn.txt)
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
-          docker build --build-arg DB_SERVER_IP=${{ env.DATABASE_IP }} -t "$IMAGE" ./backend
+          docker build --build-arg DATABASE_URL=$DATABASE_URL -t "$IMAGE" ./backend
           docker push "$IMAGE"
           echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy backend to Cloud Run
-        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        env:
-          REGION: ${{ secrets.GCP_REGION }}
-          PROJECT: ${{ secrets.GCP_PROJECT }}
-        run: |
-          gcloud run deploy store-backend \
-            --image "$BACKEND_IMAGE" \
-            --region "$REGION" \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars "DB_HOST=${DATABASE_IP},DB_USER=app_user,DB_PASS=ChangeMe123,DB_NAME=app_db"
+      # - name: Deploy backend to Cloud Run
+      #   if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+      #   env:
+      #     REGION: ${{ secrets.GCP_REGION }}
+      #     PROJECT: ${{ secrets.GCP_PROJECT }}
+      #   run: |
+      #     gcloud run deploy store-backend \
+      #       --image "$BACKEND_IMAGE" \
+      #       --region "$REGION" \
+      #       --platform managed \
+      #       --allow-unauthenticated \
+      #       --set-env-vars "DB_HOST=${DATABASE_IP},DB_USER=app_user,DB_PASS=ChangeMe123,DB_NAME=app_db"
 
-      - name: Get backend URL
-        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          BACKEND_URL=$(gcloud run services describe store-backend \
-            --region ${{ secrets.GCP_REGION }} --format='value(status.url)')
-          echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
+      # - name: Get backend URL
+      #   if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+      #   run: |
+      #     BACKEND_URL=$(gcloud run services describe store-backend \
+      #       --region ${{ secrets.GCP_REGION }} --format='value(status.url)')
+      #     echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
 
       # ---------------------------
       # 3) Build & deploy frontend
       # ---------------------------
-      - name: Prepare frontend env
-        if: steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
+      # - name: Prepare frontend env
+      #   if: steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+      #   run: |
+      #     echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
 
-      - name: Build & push frontend image
-        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        env:
-          REGION: ${{ secrets.GCP_REGION }}
-          PROJECT: ${{ secrets.GCP_PROJECT }}
-        run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
-          docker build --build-arg BACKEND_API_URL=${BACKEND_URL} -t "$IMAGE" ./frontend
-          docker push "$IMAGE"
-          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+      # - name: Build & push frontend image
+      #   if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+      #   env:
+      #     REGION: ${{ secrets.GCP_REGION }}
+      #     PROJECT: ${{ secrets.GCP_PROJECT }}
+      #   run: |
+      #     IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
+      #     docker build --build-arg BACKEND_API_URL=${BACKEND_URL} -t "$IMAGE" ./frontend
+      #     docker push "$IMAGE"
+      #     echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
       # ---------------------------
       # 4) Deploy services via Terraform (optional)

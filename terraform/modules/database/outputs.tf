@@ -10,3 +10,7 @@ output "db_private_ip" {
 # output "db_private_ip" {
 #   value = google_sql_database_instance.main.private_ip_address
 # }
+output "connection_string" {
+  value = "mysql://${google_sql_user.app_user.name}:${var.db_password}@${google_sql_database_instance.db_instance.connection_name}/${google_sql_database.app_database.name}"
+  sensitive = true
+}

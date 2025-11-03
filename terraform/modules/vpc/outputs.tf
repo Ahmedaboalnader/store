@@ -12,3 +12,7 @@ output "database_subnet" {
   description = "Database subnet self link"
   value       = google_compute_subnetwork.subnet_database.self_link
 }
+
+output "backend_connector_id" {
+  value = google_vpc_access_connector.cloud_run_connector.id
+}

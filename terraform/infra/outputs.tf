@@ -19,6 +19,10 @@ output "frontend_repo" {
   value = module.artifact_registry.frontend_repo
 }
 
+output "db_connection_string" {
+  value     = module.database.connection_string
+  sensitive = true
+}
 
 
 # output "vpc_name" {
