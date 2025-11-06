@@ -144,6 +144,11 @@ jobs:
         run: |
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
+          
+      - name: Terraform Init (Services)
+        run: |
+          cd $SERVICES_DIR
+          terraform init -input=false -upgrade
 
       # Debug step – shows env vars before apply
       - name: Debug environment before apply
