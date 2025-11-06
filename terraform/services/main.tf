@@ -22,6 +22,7 @@ data "terraform_remote_state" "infra" {
 module "backend" {
   source                = "../modules/backend"
   region                = var.region
+  project_id            = var.project_id
   service_name          = "store-backend"
   image                 = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo:latest"
   port_backend          = 5000

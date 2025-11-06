@@ -10,3 +10,7 @@ variable "db_password" { sensitive = true }
 
 variable "vpc_connector_id" {}
 variable "service_account_name" {}
+variable "project_id" {
+  type = string
+}
+
