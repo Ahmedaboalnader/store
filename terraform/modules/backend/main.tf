@@ -1,5 +1,5 @@
 resource "google_cloud_run_v2_service" "backend_service" {
-  name     = var.service_name
+  name   = "projects/${var.project_id}/locations/${var.region}/services/${google_cloud_run_v2_service.backend_service.name}/iamMember/allUsers"
   location = var.region
   deletion_protection = false
 
