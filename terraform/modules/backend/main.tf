@@ -50,7 +50,7 @@ resource "google_cloud_run_v2_service" "backend_service" {
 
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   name = "projects/${var.project_id}/locations/${var.region}/services/${google_cloud_run_v2_service.backend_service.name}/iamMember/allUsers"
-  service  = google_cloud_run_v2_service.backend_service.name
+  # service  = google_cloud_run_v2_service.backend_service.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
