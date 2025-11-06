@@ -10,6 +10,9 @@ output "db_private_ip" {
 output "vpc_connector_id" {
   value = google_vpc_access_connector.cloud_run_connector.id
 }
+output "backend_connector_id" {
+  value = google_vpc_access_connector.cloud_run_connector.id
+}
 
 output "backend_repo" {
   value = module.artifact_registry.backend_repo

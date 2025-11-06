@@ -97,17 +97,27 @@ jobs:
           terraform apply -auto-approve
           terraform output -json > tf-outputs.json
 
+      # ---------------------------
+      # 3) Load infra outputs safely
+      # ---------------------------
       - name: Load infra outputs
         run: |
           cd $TF_DIR
-          echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
-          echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
-          echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
-          echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
-          echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
+          if [ -n "$(terraform output -raw db_private_ip 2>/dev/null)" ]; then
+            echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
+          fi
+          if [ -n "$(terraform output -raw vpc_connector_id 2>/dev/null)" ]; then
+            echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
+          fi
+          if [ -n "$(terraform output -raw backend_repo 2>/dev/null)" ]; then
+            echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
+          fi
+          if [ -n "$(terraform output -raw frontend_repo 2>/dev/null)" ]; then
+            echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
+          fi
 
       # ---------------------------
-      # 3) Build & push backend image
+      # 4) Build & push backend image
       # ---------------------------
       - name: Build & push backend image
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -121,7 +131,7 @@ jobs:
           echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
       # ---------------------------
-      # 4) Build & push frontend image
+      # 5) Build & push frontend image
       # ---------------------------
       - name: Build & push frontend image
         if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -135,7 +145,7 @@ jobs:
           echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
       # ---------------------------
-      # 5) Deploy Cloud Run services (via Terraform)
+      # 6) Deploy Cloud Run services (via Terraform)
       # ---------------------------
       - name: Configure Terraform Cloud credentials
         run: |
@@ -148,13 +158,12 @@ jobs:
          rm -rf .terraform
          rm -f .terraform.lock.hcl
          echo "✅ Old Terraform state and lock removed"
- 
+
       - name: Terraform Init (Services)
         run: |
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
 
-      # Debug step – shows env vars before apply
       - name: Debug environment before apply
         run: |
           echo "DATABASE_IP=$DATABASE_IP"
@@ -184,17 +193,19 @@ jobs:
             -var="region=$GCP_REGION"
 
       # ---------------------------
-      # 6) Get backend URL after deploy
+      # 7) Get backend URL after deploy
       # ---------------------------
       - name: Get backend URL
         run: |
           cd $SERVICES_DIR
-          BACKEND_URL=$(terraform output -raw backend_url)
-          echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
-          echo "Backend URL: ${BACKEND_URL}"
+          if [ -n "$(terraform output -raw backend_url 2>/dev/null)" ]; then
+            BACKEND_URL=$(terraform output -raw backend_url)
+            echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
+            echo "Backend URL: ${BACKEND_URL}"
+          fi
 
       # ---------------------------
-      # 7) Final summary
+      # 8) Final summary
       # ---------------------------
       - name: Final output
         run: |

@@ -18,14 +18,12 @@ variable "frontend_image" {
   type        = string
 }
 
-variable "db_private_ip" {
-  description = "Private IP of the database"
-  type        = string
+variable "DATABASE_IP" {
+  default = data.terraform_remote_state.infra.outputs.db_private_ip
 }
 
-variable "vpc_connector_id" {
-  description = "VPC connector ID for Cloud Run"
-  type        = string
+variable "VPC_CONNECTOR_ID" {
+  default = data.terraform_remote_state.infra.outputs.backend_connector_id
 }
 
 variable "zone" {
