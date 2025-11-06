@@ -27,3 +27,9 @@ variable "vpc_connector_id" {
   description = "VPC connector ID for Cloud Run"
   type        = string
 }
+
+variable "zone" {
+  description = "GCP zone for resources"
+  type        = string
+  default     = "us-central1-a"
+}
