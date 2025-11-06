@@ -98,11 +98,11 @@ jobs:
       - name: Load infra outputs
         run: |
           cd $TF_DIR
+          echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
           echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
           echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
           echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
           echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
-          echo "✅ Infra outputs loaded."
 
       # ---------------------------
       # 3) Build & push backend image
@@ -140,11 +140,13 @@ jobs:
           mkdir -p ~/.terraform.d
           echo "{\"credentials\": {\"app.terraform.io\": {\"token\": \"${{ secrets.TF_API_TOKEN }}\"}}}" > ~/.terraform.d/credentials.tfrc.json
 
-      - name: Terraform Init (Services)
+      - name: Clean old Terraform state & lock
         run: |
-          cd $SERVICES_DIR
-          terraform init -input=false -upgrade
-          
+         cd $SERVICES_DIR
+         rm -rf .terraform
+         rm -f .terraform.lock.hcl
+         echo "✅ Old Terraform state and lock removed"
+ 
       - name: Terraform Init (Services)
         run: |
           cd $SERVICES_DIR
