@@ -1,5 +1,5 @@
 resource "google_cloud_run_v2_service" "backend_service" {
-  name   = "projects/${var.project_id}/locations/${var.region}/services/${google_cloud_run_v2_service.backend_service.name}/iamMember/allUsers"
+  name   = var.service_name
   location = var.region
   deletion_protection = false
 
@@ -49,8 +49,17 @@ resource "google_cloud_run_v2_service" "backend_service" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  count   = 1
-  service = google_cloud_run_v2_service.backend_service.name
-  role    = "roles/run.invoker"
-  member  = "allUsers"
+  service  = google_cloud_run_v2_service.backend_service.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
+  name                  = "${var.service_name}-neg"
+  region                = var.region
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = google_cloud_run_v2_service.backend_service.name
+  }
 }
