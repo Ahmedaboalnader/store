@@ -81,6 +81,12 @@ jobs:
         run: |
           cd $TF_DIR
           terraform init -input=false -upgrade
+       
+      - name: Terraform plan (infra)
+        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd $TF_DIR
+          terraform plan -out=tfplan    
 
       - name: Terraform apply (infra)
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'

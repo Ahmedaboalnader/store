@@ -24,9 +24,9 @@ resource "google_sql_database_instance" "db_instance" {
     tier = "db-f1-micro"
 
     ip_configuration {
-      ipv4_enabled    = false
-      private_network = "projects/${var.project_id}/global/networks/${var.vpc_name}"
-    }
+  ipv4_enabled    = false
+  private_network = var.vpc_self_link
+     }
   }
 
   depends_on = [google_service_networking_connection.private_vpc_connection]

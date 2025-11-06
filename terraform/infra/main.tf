@@ -37,10 +37,10 @@ module "database" {
   db_instance_name = "store-sql-instance"
   region           = var.region
   project_id       = var.project_id
-  vpc_name         = module.vpc.vpc_self_link
   db_user          = "app_user"
   db_password      = "ChangeMe123"
   db_name          = "app_db"
+  vpc_self_link    = module.vpc.vpc_self_link
 }
 
 module "artifact_registry" {
@@ -51,7 +51,7 @@ module "artifact_registry" {
 resource "google_vpc_access_connector" "cloud_run_connector" {
   name          = "cloud-run-connector"
   region        = var.region
-  network       = module.vpc.vpc_name    
+  network       = module.vpc.vpc_self_link   
   ip_cidr_range = var.connector_ip_cidr
   min_instances = 2
   max_instances = 5
