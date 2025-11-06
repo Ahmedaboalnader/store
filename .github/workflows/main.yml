@@ -15,9 +15,11 @@ env:
   BACKEND_DIR: backend
   FRONTEND_DIR: frontend
 
-jobs:
+jobs: 
   deploy-all:
     runs-on: ubuntu-latest
+    env:
+      TERRAFORM_TOKEN: ${{ secrets.TFC_TOKEN }}
     permissions:
       contents: read
 

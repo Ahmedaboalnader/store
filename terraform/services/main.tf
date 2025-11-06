@@ -13,9 +13,12 @@ resource "google_project_iam_binding" "cloudsql_access" {
 }
 
 data "terraform_remote_state" "infra" {
-  backend = "local"
+  backend = "remote"
   config = {
-    path = "../infra/terraform.tfstate"
+    organization = "ahmedaboalnder"
+    workspaces {
+      name = "my-infra"
+    }
   }
 }
 
