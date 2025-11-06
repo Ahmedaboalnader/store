@@ -4,12 +4,14 @@
     {
       "label": "Git Push All",
       "type": "shell",
-      "command": "git pull origin main && git add . && git commit -m \"update\" && git push origin main",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": []
+      "command": "git pull origin main && git add . && git diff-index --quiet HEAD || git commit -m \"update\" && git push origin main",
+      "problemMatcher": [],
+      "options": {
+        "shell": {
+          "executable": "/usr/bin/bash",
+          "args": ["-c"]
+        }
+      }
     }
   ]
 }
