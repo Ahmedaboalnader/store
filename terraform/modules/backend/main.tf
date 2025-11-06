@@ -27,12 +27,11 @@ resource "google_cloud_run_v2_service" "backend_service" {
       }
     }
 
-    container_concurrency = 80
-    service_account       = var.service_account_name
+    service_account = var.service_account_name
 
     vpc_access {
-      connector   = var.vpc_connector_id
-      egress      = "ALL_TRAFFIC"
+      connector = var.vpc_connector_id
+      egress    = "ALL_TRAFFIC"
     }
   }
 
@@ -43,10 +42,10 @@ resource "google_cloud_run_v2_service" "backend_service" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  location = var.region
-  service  = google_cloud_run_v2_service.backend_service.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  service_id = google_cloud_run_v2_service.backend_service.name
+  region     = var.region
+  role       = "roles/run.invoker"
+  member     = "allUsers"
 }
 
 resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {

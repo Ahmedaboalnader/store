@@ -23,7 +23,7 @@ module "backend" {
   source                = "../modules/backend"
   region                = var.region
   service_name          = "store-backend"
-  image                 = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo/store-backend:latest"
+  image                 = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo:latest"
   port_backend          = 5000
   db_private_ip         = data.terraform_remote_state.infra.outputs.db_private_ip
   db_name               = data.terraform_remote_state.infra.outputs.db_name
