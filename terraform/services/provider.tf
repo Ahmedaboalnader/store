@@ -3,7 +3,7 @@ terraform {
     google = {
       source  = "hashicorp/google"
       # Keep provider constraint aligned with infra; permit 7.x
-      version = ">= 7.0.0, < 8.0.0"
+      version = "7.10.0"
     }
   }
   # Require Terraform 1.x (workflow uses 1.13.0)

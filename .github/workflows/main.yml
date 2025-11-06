@@ -30,7 +30,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ">= 7.0.0, < 8.0.0"
+          terraform_version: ">= 1.0.0, < 2.0.0"
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Detect changed paths
@@ -98,7 +98,7 @@ jobs:
       - name: Load infra outputs
         run: |
           cd $TF_DIR
-          echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
+          echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
           echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
           echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
           echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
