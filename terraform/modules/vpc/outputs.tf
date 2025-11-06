@@ -13,3 +13,6 @@ output "database_subnet" {
   value       = google_compute_subnetwork.subnet_database.self_link
 }
 
+output "vpc_self_link" {
+  value = google_compute_network.main_vpc.self_link
+}

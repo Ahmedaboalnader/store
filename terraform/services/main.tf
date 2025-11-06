@@ -1,3 +1,17 @@
+resource "google_service_account" "cloud_run_sa" {
+  account_id   = "cloud-run-service-account"
+  display_name = "Cloud Run Service Account"
+}
+
+resource "google_project_iam_binding" "cloudsql_access" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+
+  members = [
+    "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  ]
+}
+
 data "terraform_remote_state" "infra" {
   backend = "local"
   config = {
@@ -6,23 +20,26 @@ data "terraform_remote_state" "infra" {
 }
 
 module "backend" {
-  source        = "../modules/backend"
-  region        = "us-central1"
-  service_name  = "store-backend"
-  image         = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo/store-backend:latest"
-  port_backend  = 5000
-  db_private_ip = "10.88.0.3"
-  db_name       = "app_db"
-  db_user       = "app_user"
-  db_password   = "ChangeMe123"
-  vpc_connector_id = data.terraform_remote_state.infra.outputs.vpc_connector_id
+  source                = "../modules/backend"
+  region                = var.region
+  service_name          = "store-backend"
+  image                 = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo/store-backend:latest"
+  port_backend          = 5000
+  db_private_ip         = data.terraform_remote_state.infra.outputs.db_private_ip
+  db_name               = data.terraform_remote_state.infra.outputs.db_name
+  db_user               = data.terraform_remote_state.infra.outputs.db_user
+  db_password           = data.terraform_remote_state.infra.outputs.db_password
+  vpc_connector_id      = data.terraform_remote_state.infra.outputs.vpc_connector_id
+  service_account_name  = google_service_account.cloud_run_sa.email
 }
 
 module "frontend" {
-  source        = "../modules/frontend"
-  region        = "us-central1"
-  service_name  = "store-frontend"
-  image         = "us-central1-docker.pkg.dev/konecta-task-467513/frontend-repo/store-frontend:latest"
-  backend_url   = module.backend.backend_url
+  source       = "../modules/frontend"
+  service_name = "frontend-service"
+  region       = var.region
+  image        = var.frontend_image
   port_frontend = 80
+
+  backend_url = module.backend.backend_url  
 }
+

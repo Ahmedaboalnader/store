@@ -1,3 +1,17 @@
+resource "google_service_account" "cloud_run_sa" {
+  account_id   = "cloud-run-sa"
+  display_name = "Cloud Run Service Account"
+}
+
+resource "google_project_iam_binding" "cloud_run_sa_sql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  members = [
+    "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  ]
+}
+
+
 resource "google_project_service" "enable_apis" {
   for_each = toset([
     "compute.googleapis.com",
@@ -23,7 +37,7 @@ module "database" {
   db_instance_name = "store-sql-instance"
   region           = var.region
   project_id       = var.project_id
-  vpc_name         = module.vpc.vpc_name
+  vpc_name         = module.vpc.vpc_self_link
   db_user          = "app_user"
   db_password      = "ChangeMe123"
   db_name          = "app_db"
@@ -35,7 +49,7 @@ module "artifact_registry" {
 }
 
 resource "google_vpc_access_connector" "cloud_run_connector" {
-  name          = "cloud-run-redis-connector"
+  name          = "cloud-run-connector"
   region        = var.region
   network       = module.vpc.vpc_name    
   ip_cidr_range = var.connector_ip_cidr

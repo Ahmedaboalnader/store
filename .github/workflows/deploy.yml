@@ -25,8 +25,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 
-          
+          fetch-depth: 0
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -60,23 +60,21 @@ jobs:
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
       # ---------------------------
-      # 1) Enable required APIs first
+      # 1) Enable required GCP APIs
       # ---------------------------
       - name: Enable required GCP APIs
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          # Enable all required APIs (Service Networking must be enabled for private IP Cloud SQL)
-          gcloud services enable servicenetworking.googleapis.com
-          gcloud services enable vpcaccess.googleapis.com
-          gcloud services enable run.googleapis.com
-          gcloud services enable compute.googleapis.com
-          gcloud services enable artifactregistry.googleapis.com
-          gcloud services enable sqladmin.googleapis.com
-          # Wait for API activation to propagate (important for Service Networking API)
-          echo "Waiting for APIs to be fully enabled..."
+          gcloud services enable servicenetworking.googleapis.com \
+                                 vpcaccess.googleapis.com \
+                                 run.googleapis.com \
+                                 compute.googleapis.com \
+                                 artifactregistry.googleapis.com \
+                                 sqladmin.googleapis.com
+          echo "✅ GCP APIs enabled."
 
       # ---------------------------
-      # 2) Infra: init/plan/apply
+      # 2) Infra: init / plan / apply
       # ---------------------------
       - name: Terraform init (infra)
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -84,40 +82,24 @@ jobs:
           cd $TF_DIR
           terraform init -input=false -upgrade
 
-      - name: Terraform plan (infra)
-        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        run: |
-          cd $TF_DIR
-          terraform refresh
-          terraform plan -out=tfplan -input=false || true
-          terraform show -json tfplan > tfplan.json || true
-          terraform output -json > tf-outputs.json || true
-        continue-on-error: true
-
       - name: Terraform apply (infra)
         if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
-          terraform destroy -auto-approve
-          echo "DATABASE_IP=$(terraform output -raw database_private_ip)" >> $GITHUB_ENV
-          echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
+          terraform apply -auto-approve
+          terraform output -json > tf-outputs.json
 
-      - name: Parse TF outputs into env
+      - name: Load infra outputs
         run: |
           cd $TF_DIR
-          BACKEND_REPO=$(jq -r '.backend_repo.value // empty' tf-outputs.json)
-          FRONTEND_REPO=$(jq -r '.frontend_repo.value // empty' tf-outputs.json)
-          echo "BACKEND_REPO=${BACKEND_REPO}" >> $GITHUB_ENV
-          echo "FRONTEND_REPO=${FRONTEND_REPO}" >> $GITHUB_ENV
+          echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
+          echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
+          echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
+          echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
+          echo "✅ Infra outputs loaded."
 
-      - name: db connection string
-        id: tf
-        run: |
-          cd terraform
-          terraform output -raw db_connection_string > db_conn.txt
-        
       # ---------------------------
-      # 2) Build & deploy backend first
+      # 3) Build & push backend image
       # ---------------------------
       - name: Build & push backend image
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -125,53 +107,27 @@ jobs:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
         run: |
-          DATABASE_URL=$(cat terraform/db_conn.txt)
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
-          docker build --build-arg DATABASE_URL=$DATABASE_URL -t "$IMAGE" ./backend
+          docker build -t "$IMAGE" ./backend
           docker push "$IMAGE"
           echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # - name: Deploy backend to Cloud Run
-      #   if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-      #   env:
-      #     REGION: ${{ secrets.GCP_REGION }}
-      #     PROJECT: ${{ secrets.GCP_PROJECT }}
-      #   run: |
-      #     gcloud run deploy store-backend \
-      #       --image "$BACKEND_IMAGE" \
-      #       --region "$REGION" \
-      #       --platform managed \
-      #       --allow-unauthenticated \
-      #       --set-env-vars "DB_HOST=${DATABASE_IP},DB_USER=app_user,DB_PASS=ChangeMe123,DB_NAME=app_db"
-
-      # - name: Get backend URL
-      #   if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-      #   run: |
-      #     BACKEND_URL=$(gcloud run services describe store-backend \
-      #       --region ${{ secrets.GCP_REGION }} --format='value(status.url)')
-      #     echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
+      # ---------------------------
+      # 4) Build & push frontend image
+      # ---------------------------
+      - name: Build & push frontend image
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
+          docker build -t "$IMAGE" ./frontend
+          docker push "$IMAGE"
+          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
       # ---------------------------
-      # 3) Build & deploy frontend
-      # ---------------------------
-      # - name: Prepare frontend env
-      #   if: steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
-      #   run: |
-      #     echo "REACT_APP_API_URL=${BACKEND_URL}" > frontend/.env
-
-      # - name: Build & push frontend image
-      #   if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-      #   env:
-      #     REGION: ${{ secrets.GCP_REGION }}
-      #     PROJECT: ${{ secrets.GCP_PROJECT }}
-      #   run: |
-      #     IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
-      #     docker build --build-arg BACKEND_API_URL=${BACKEND_URL} -t "$IMAGE" ./frontend
-      #     docker push "$IMAGE"
-      #     echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      # ---------------------------
-      # 4) Deploy services via Terraform (optional)
+      # 5) Deploy Cloud Run services (via Terraform)
       # ---------------------------
       - name: Terraform deploy services
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.frontend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
@@ -190,17 +146,29 @@ jobs:
             -var="vpc_connector_id=$VPC_CONNECTOR_ID" \
             -var="backend_image=$BACKEND_IMAGE" \
             -var="frontend_image=$FRONTEND_IMAGE" \
-            -var="project=$GCP_PROJECT" \
+            -var="project_id=$GCP_PROJECT" \
             -var="region=$GCP_REGION"
 
       # ---------------------------
-      # 5) Final output
+      # 6) Get backend URL after deploy
+      # ---------------------------
+      - name: Get backend URL
+        run: |
+          cd $SERVICES_DIR
+          BACKEND_URL=$(terraform output -raw backend_url)
+          echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
+          echo "Backend URL: ${BACKEND_URL}"
+
+      # ---------------------------
+      # 7) Final summary
       # ---------------------------
       - name: Final output
         run: |
-          echo "=== Deployment summary ==="
+          echo "============================"
+          echo "✅ Deployment summary"
           echo "Backend image: $BACKEND_IMAGE"
           echo "Frontend image: $FRONTEND_IMAGE"
           echo "Backend URL: $BACKEND_URL"
           echo "Database IP: $DATABASE_IP"
           echo "VPC Connector ID: $VPC_CONNECTOR_ID"
+          echo "============================"

@@ -1,10 +1,3 @@
-# resource "google_artifact_registry_repository" "frontend_repo" {
-#   provider     = google
-#   location     = var.region
-#   repository_id = "frontend-repo"
-#   format       = "DOCKER"
-# }
-
 # Cloud Run Service (Frontend)
 resource "google_cloud_run_service" "frontend_service" {
   name     = var.service_name
@@ -15,13 +8,22 @@ resource "google_cloud_run_service" "frontend_service" {
       timeout_seconds = 10
       containers {
         image = var.image
+
         ports {
           container_port = var.port_frontend
         }
+
         env {
           name  = "REACT_APP_API_URL"
-          value = var.backend_url
+          value = var.backend_url  # backend URL جاي من output الانفرا أو من main.tf
         }
+      }
+    }
+
+    metadata {
+      annotations = {
+        "run.googleapis.com/client-name" = "terraform"
+        "autoscaling.knative.dev/minScale" = "1"
       }
     }
   }
@@ -30,8 +32,11 @@ resource "google_cloud_run_service" "frontend_service" {
     percent         = 100
     latest_revision = true
   }
+
+  autogenerate_revision_name = true
 }
 
+# Allow public access
 resource "google_cloud_run_service_iam_member" "frontend_public_access" {
   location = var.region
   service  = google_cloud_run_service.frontend_service.name
@@ -39,6 +44,7 @@ resource "google_cloud_run_service_iam_member" "frontend_public_access" {
   member   = "allUsers"
 }
 
+# NEG (for optional load balancer)
 resource "google_compute_region_network_endpoint_group" "frontend_neg" {
   name                  = "${var.service_name}-neg"
   region                = var.region
@@ -47,17 +53,3 @@ resource "google_compute_region_network_endpoint_group" "frontend_neg" {
     service = google_cloud_run_service.frontend_service.name
   }
 }
-
-# Backend Service for Load Balancer
-# resource "google_compute_region_backend_service" "frontend_backend_lb" {
-  # name                  = "${var.service_name}-lb"
-  # region                = var.region
-  # load_balancing_scheme = "EXTERNAL_MANAGED"
-  # protocol              = "HTTP"
-
-  # backend {
-  #   group           = google_compute_region_network_endpoint_group.frontend_neg.id
-    # capacity_scaler = 1.0
-  # }
-# # }
-

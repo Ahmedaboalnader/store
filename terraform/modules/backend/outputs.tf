@@ -6,3 +6,4 @@ output "backend_url" {
 output "backend_service_name" {
   value = google_cloud_run_service.backend_service.name
 }
+

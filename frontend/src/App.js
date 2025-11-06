@@ -3,21 +3,19 @@ import { useEffect, useState } from 'react';
 function App() {
   const [products, setProducts] = useState([]);
 
-  // Fetch products from backend
   useEffect(() => {
-    // fetch('http://localhost:5000/products')
-    fetch(process.env.REACT_APP_API_URL)
+    const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/products';
+
+    fetch(`${backendUrl}/products`)
       .then(res => res.json())
       .then(data => setProducts(data))
-      .catch(err => console.error(err));
+      .catch(err => console.error('❌ Error fetching products:', err));
   }, []);
 
-  // Remove product (temporarily in frontend)
   const removeProduct = (id) => {
     setProducts(products.filter(p => p.id !== id));
   };
 
-  // Add dummy product
   const addProduct = () => {
     const newProduct = {
       id: products.length + 1,
