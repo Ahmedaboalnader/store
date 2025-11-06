@@ -1,5 +1,5 @@
-variable "region" {}
 variable "service_name" {}
+variable "region" {}
 variable "image" {}
 variable "port_backend" { type = number }
 
