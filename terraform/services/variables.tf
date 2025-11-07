@@ -17,10 +17,6 @@ variable "frontend_image" {
   description = "Docker image for the frontend"
   type        = string
 }
-variable "DATABASE_IP" {
-  description = "Private IP of the database"
-  type        = string
-}
 
 variable "db_private_ip" {
   description = "Private IP of the database"
