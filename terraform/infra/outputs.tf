@@ -27,9 +27,7 @@ output "db_connection_string" {
   sensitive = true
 }
 
-output "backend_connector_id" {
-  value = google_vpc_access_connector.cloud_run_connector.id
-}
+
 
 
 
