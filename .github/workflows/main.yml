@@ -18,7 +18,6 @@ env:
   SERVICES_DIR: terraform/services
   BACKEND_DIR: backend
   FRONTEND_DIR: frontend
-  
 
 jobs: 
   deploy-all:
@@ -111,10 +110,10 @@ jobs:
       - name: Load infra outputs
         run: |
           cd $TF_DIR
-           echo "DB_HOST=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
-           echo "DB_USER=$(terraform output -raw db_user)" >> $GITHUB_ENV
-           echo "DB_NAME=$(terraform output -raw db_name)" >> $GITHUB_ENV
-           echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
+          echo "DB_HOST=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
+          echo "DB_USER=$(terraform output -raw db_user)" >> $GITHUB_ENV
+          echo "DB_NAME=$(terraform output -raw db_name)" >> $GITHUB_ENV
+          echo "VPC_CONNECTOR_ID=$(terraform output -raw vpc_connector_id)" >> $GITHUB_ENV
           if [ -n "$(terraform output -raw db_private_ip 2>/dev/null)" ]; then
             echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
           fi
@@ -149,7 +148,6 @@ jobs:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
           FRONTEND_REPO: frontend-repo
-
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
           docker build -t "$IMAGE" ./frontend
@@ -166,20 +164,18 @@ jobs:
 
       - name: Clean old Terraform state & lock
         run: |
-         cd $SERVICES_DIR
-         rm -rf .terraform
-         rm -f .terraform.lock.hcl
-         echo "✅ Old Terraform state and lock removed"
+          cd $SERVICES_DIR
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+          echo "✅ Old Terraform state and lock removed"
 
       - name: Terraform Init (Services)
         env:
           TF_CLOUD_ORGANIZATION: ahmedaboalnder
-            
           TF_API_TOKEN: ${{ secrets.TF_API_TOKEN2 }}
         run: |
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
-    
 
       - name: Debug environment before apply
         run: |
@@ -222,13 +218,11 @@ jobs:
       - name: Get backend URL
         run: |
           cd $SERVICES_DIR
-          if [ -n "$(terraform output -raw backend_url 2>/dev/null)" ]; then
-            terraform init -input=false 
-            terraform refresh 
-            BACKEND_URL=$(terraform output -raw backend_url)
-            echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_ENV
-            echo "Backend URL: ${BACKEND_URL}"
-          fi
+          terraform init -input=false
+          terraform refresh
+          BACKEND_URL=$(terraform output -raw backend_url 2>/dev/null || echo "")
+          echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
+          echo "Backend URL: $BACKEND_URL"
 
       # ---------------------------
       # 8) Final summary
