@@ -47,7 +47,7 @@ module "backend" {
   db_name               = var.db_name
   db_user               = var.db_user
   db_password           = var.db_password
-  vpc_connector_id      = var.VPC_CONNECTOR_ID
+  vpc_connector_id      = var.vpc_connector_id
   service_account_name  = google_service_account.cloud_run_sa.email
 }
 

@@ -24,10 +24,12 @@ variable "db_private_ip" {
 }
 
 
-variable "VPC_CONNECTOR_ID" {
+
+variable "vpc_connector_id" {
   description = "ID of the VPC connector"
   type        = string
 }
+
 
 
 variable "zone" {
