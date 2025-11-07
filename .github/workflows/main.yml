@@ -214,7 +214,8 @@ jobs:
             -var="region=$GCP_REGION" \
             -var="db_name=$DB_NAME" \
             -var="db_user=$DB_USER" \
-            -var="db_pass=$DB_PASS"
+            -var="db_password=$DB_PASS"
+
       # ---------------------------
       # 7) Get backend URL after deploy
       # ---------------------------
