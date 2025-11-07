@@ -79,6 +79,13 @@ jobs:
                                  sqladmin.googleapis.com
           echo "✅ GCP APIs enabled."
 
+      - name: Clean Terraform cache (infra)
+        if: steps.changes.outputs.infra == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          cd $TF_DIR
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+
       - name: Terraform init (infra)
         if: steps.changes.outputs.infra == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
@@ -103,24 +110,12 @@ jobs:
           echo "BACKEND_REPO=$(terraform output -raw backend_repo)" >> $GITHUB_ENV
           echo "FRONTEND_REPO=$(terraform output -raw frontend_repo)" >> $GITHUB_ENV
 
-      - name: Build & push backend image
-        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
-        id: build_backend
-        env:
-          REGION: ${{ secrets.GCP_REGION }}
-          PROJECT: ${{ secrets.GCP_PROJECT }}
-        run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
-          docker build -t "$IMAGE" ./backend
-          docker push "$IMAGE"
-          echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
-
       - name: Terraform Init (Services)
         run: |
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
 
-      - name: Get Backend URL
+      - name: Build & push backend image
         id: get_backend_url
         if: steps.build_backend.conclusion == 'success'
         env:
