@@ -1,13 +1,13 @@
-data "terraform_remote_state" "infra" {
-  backend = "remote"
+# data "terraform_remote_state" "infra" {
+#   backend = "remote"
 
-  config = {
-    organization = "ahmedaboalnder"
-    workspaces = {
-      name = "my-infra"
-    }
-  }
-}
+#   config = {
+#     organization = "ahmedaboalnder"
+#     workspaces = {
+#       name = "my-infra"
+#     }
+#   }
+# }
 
 resource "google_cloud_run_v2_service" "backend_service" {
   name   = var.service_name
