@@ -12,30 +12,16 @@ resource "google_project_iam_binding" "cloudsql_access" {
   ]
 }
 
-# data "terraform_remote_state" "infra" {
-#   backend = "remote"
-#   config = {
-#     organization = "ahmedaboalnder"
-#     workspaces {
-#       name = "my-infra"
-#     }
-#   }
-# }
+data "terraform_remote_state" "infra" {
+  backend = "remote"
+  config = {
+    organization = "ahmedaboalnder"
+    workspaces = {
+      name = "my-infra"
+    }
+  }
+}
 
-# module "backend" {
-#   source                = "../modules/backend"
-#   region                = var.region
-#   project_id            = var.project_id
-#   service_name          = "store-backend"
-#   image                 = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo:latest"
-#   port_backend          = 5000
-#   db_private_ip         = data.terraform_remote_state.infra.outputs.db_private_ip
-#   db_name               = data.terraform_remote_state.infra.outputs.db_name
-#   db_user               = data.terraform_remote_state.infra.outputs.db_user
-#   db_password           = data.terraform_remote_state.infra.outputs.db_password
-#   vpc_connector_id      = data.terraform_remote_state.infra.outputs.vpc_connector_id
-#   service_account_name  = google_service_account.cloud_run_sa.email
-# }
 module "backend" {
   source                = "../modules/backend"
   region                = var.region
@@ -43,11 +29,11 @@ module "backend" {
   service_name          = "store-backend"
   image                 = var.backend_image
   port_backend          = 5000
-  db_private_ip         = var.db_private_ip
-  db_name               = var.db_name
-  db_user               = var.db_user
-  db_password           = var.db_password
-  vpc_connector_id      = var.vpc_connector_id
+  db_private_ip         = data.terraform_remote_state.infra.outputs.db_private_ip
+  db_name               = data.terraform_remote_state.infra.outputs.db_name
+  db_user               = data.terraform_remote_state.infra.outputs.db_user
+  db_password           = data.terraform_remote_state.infra.outputs.db_password
+  vpc_connector_id      = data.terraform_remote_state.infra.outputs.vpc_connector_id
   service_account_name  = google_service_account.cloud_run_sa.email
 }
 
