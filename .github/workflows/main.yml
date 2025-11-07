@@ -186,7 +186,7 @@ jobs:
 
       - name: Final output
         run: |
-                    echo "============================"
+          echo "============================"
           echo "✅ Deployment summary"
           echo "Backend image: "$BACKEND_IMAGE""
           echo "Frontend image: "$FRONTEND_IMAGE""
