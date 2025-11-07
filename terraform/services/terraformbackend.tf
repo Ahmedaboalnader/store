@@ -1,10 +1,8 @@
-terraform { 
-  cloud { 
-    
-    organization = "ahmedaboalnder" 
-
-    workspaces { 
-      name = "servise" 
-    } 
-  } 
+terraform {
+  cloud {
+    organization = "ahmedaboalnder"
+    workspaces {
+      name = "services"
+    }
+  }
 }
