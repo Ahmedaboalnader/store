@@ -1,9 +1,10 @@
-terraform {
-  cloud {
-    hostname     = "app.terraform.io"
-    organization = "ahmedaboalnder"
-    workspaces {
-      name = "services"
-    }
-  }
+terraform { 
+  cloud { 
+    
+    organization = "ahmedaboalnder" 
+
+    workspaces { 
+      name = "servise" 
+    } 
+  } 
 }
