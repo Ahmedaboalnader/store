@@ -170,7 +170,7 @@ jobs:
       - name: Terraform Init (Services)
         env:
           TF_CLOUD_ORGANIZATION: ahmedaboalnder
-          TF_WORKSPACE: my-infra      
+            
           TF_API_TOKEN: ${{ secrets.TF_API_TOKEN2 }}
         run: |
           cd $SERVICES_DIR
