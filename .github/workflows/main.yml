@@ -18,11 +18,15 @@ env:
   SERVICES_DIR: terraform/services
   BACKEND_DIR: backend
   FRONTEND_DIR: frontend
+  
 
 jobs: 
   deploy-all:
     runs-on: ubuntu-latest
     env:
+      TF_CLOUD_ORGANIZATION: ahmedaboalnder
+      TF_CLOUD_WORKSPACE: my-infra
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
       TERRAFORM_TOKEN: ${{ secrets.TFC_TOKEN }}
     permissions:
       contents: read
