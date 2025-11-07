@@ -16,15 +16,19 @@ output "connection_string" {
   sensitive = true
 }
 
+output "db_name" {
+  value = google_sql_database.app_database.name
+}
+
 output "db_user" {
   value = google_sql_user.app_user.name
 }
 
-output "db_pass" {
-  value     = google_sql_user.app_user.password
-  sensitive = true
-}
+# output "db_pass" {
+#   value     = google_sql_user.app_user.password
+#   sensitive = true
+# }
 
-output "db_name" {
-  value = google_sql_database.app_db.name
+output "db_private_ip" {
+  value = google_sql_database_instance.db_instance.private_ip_address
 }

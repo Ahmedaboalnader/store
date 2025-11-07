@@ -33,9 +33,9 @@ output "db_user" {
 output "db_name" {
   value = module.database.db_name
 }
-output "db_password" {
-  value     = module.database.db_pass
-}
+# output "db_password" {
+#   value     = module.database.db_pass
+# }
 
 
 
