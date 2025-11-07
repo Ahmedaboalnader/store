@@ -111,6 +111,9 @@ jobs:
       - name: Load infra outputs
         run: |
           cd $TF_DIR
+           echo "DB_HOST=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
+           echo "DB_USER=$(terraform output -raw db_user)" >> $GITHUB_ENV
+           echo "DB_NAME=$(terraform output -raw db_name)" >> $GITHUB_ENV
           if [ -n "$(terraform output -raw db_private_ip 2>/dev/null)" ]; then
             echo "DATABASE_IP=$(terraform output -raw db_private_ip)" >> $GITHUB_ENV
           fi
@@ -198,6 +201,10 @@ jobs:
           FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
+          DB_USER: ${{ env.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ env.DB_NAME }}
+          DB_HOST: ${{ env.DATABASE_IP }}
         run: |
           cd $SERVICES_DIR
           terraform apply -auto-approve \

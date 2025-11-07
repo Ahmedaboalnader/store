@@ -15,3 +15,16 @@ output "connection_string" {
   value = "mysql://${google_sql_user.app_user.name}:${var.db_password}@${google_sql_database_instance.db_instance.connection_name}/${google_sql_database.app_database.name}"
   sensitive = true
 }
+
+output "db_user" {
+  value = google_sql_user.app_user.name
+}
+
+output "db_pass" {
+  value     = google_sql_user.app_user.password
+  sensitive = true
+}
+
+output "db_name" {
+  value = google_sql_database.app_db.name
+}
