@@ -181,7 +181,7 @@ jobs:
         run: |
           echo "DATABASE_IP=$DATABASE_IP"
           echo "VPC_CONNECTOR_ID=$VPC_CONNECTOR_ID"
-          echo "BACKEND_IMAGE=$BACKEND_IMAGE"
+          echo "BACKEND_IMAGE=$BACKEND_IMAGE" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE=$FRONTEND_IMAGE"
           echo "GCP_PROJECT=${{ secrets.GCP_PROJECT }}"
           echo "GCP_REGION=${{ secrets.GCP_REGION }}"
