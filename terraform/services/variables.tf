@@ -11,13 +11,13 @@ variable "region" {
 variable "backend_image" {
   description = "Docker image for the backend"
   type        = string
-  default     = null
+  default     = "us-central1-docker.pkg.dev/konecta-task-467513/backend-repo/store-backend:latest"
 }
 
 variable "frontend_image" {
   description = "Docker image for the frontend"
   type        = string
-  default     = null
+  default     = "us-central1-docker.pkg.dev/konecta-task-467513/frontend-repo/store-frontend:latest"
 }
 
 variable "db_private_ip" {
