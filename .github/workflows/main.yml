@@ -105,6 +105,7 @@ jobs:
 
       - name: Build & push backend image
         if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        id: build_backend
         env:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
@@ -119,9 +120,9 @@ jobs:
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
 
-      - name: Deploy Backend Service
-        id: deploy_backend
-        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+      - name: Get Backend URL
+        id: get_backend_url
+        if: steps.build_backend.conclusion == 'success'
         env:
           DB_HOST: ${{ env.DB_HOST }}
           DB_USER: ${{ env.DB_USER }}
@@ -133,6 +134,7 @@ jobs:
           GCP_REGION: ${{ secrets.GCP_REGION }}
         run: |
           cd $SERVICES_DIR
+          # Temporarily apply only the backend to get its URL
           terraform apply -auto-approve -target=module.backend \
             -var="db_private_ip=$DB_HOST" \
             -var="db_user=$DB_USER" \
@@ -146,7 +148,7 @@ jobs:
 
       - name: Build & push frontend image (with backend URL)
         id: build_frontend
-        if: steps.deploy_backend.conclusion == 'success' || steps.changes.outputs.frontend == 'true'
+        if: steps.get_backend_url.conclusion == 'success' || steps.changes.outputs.frontend == 'true'
         env:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
@@ -157,20 +159,30 @@ jobs:
           docker push "$IMAGE"
           echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy Frontend Service
-        if: steps.build_frontend.conclusion == 'success'
+      - name: Deploy All Services
+        if: steps.build_frontend.conclusion == 'success' || steps.build_backend.conclusion == 'success'
         env:
+          DB_HOST: ${{ env.DB_HOST }}
+          DB_USER: ${{ env.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ env.DB_NAME }}
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}
           FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}
+          VPC_CONNECTOR_ID: ${{ env.VPC_CONNECTOR_ID }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
-          BACKEND_URL: ${{ env.BACKEND_URL }}
         run: |
           cd $SERVICES_DIR
           terraform apply -auto-approve \
+            -var="db_private_ip=$DB_HOST" \
+            -var="db_user=$DB_USER" \
+            -var="db_password=$DB_PASS" \
+            -var="db_name=$DB_NAME" \
+            -var="backend_image=$BACKEND_IMAGE" \
             -var="frontend_image=$FRONTEND_IMAGE" \
+            -var="vpc_connector_id=$VPC_CONNECTOR_ID" \
             -var="project_id=$GCP_PROJECT" \
-            -var="region=$GCP_REGION" \
-            -var="backend_url=$BACKEND_URL"
+            -var="region=$GCP_REGION"
 
       - name: Final output
         run: |
