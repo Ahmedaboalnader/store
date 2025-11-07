@@ -40,7 +40,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5.7"
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN2 }}
 
       - name: Detect changed paths
         id: changes
@@ -80,13 +80,13 @@ jobs:
           echo "✅ GCP APIs enabled."
 
       - name: Terraform init (infra)
-        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.changes.outputs.infra == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
           terraform init -input=false -upgrade
 
       - name: Terraform apply (infra)
-        if: steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.changes.outputs.infra == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           cd $TF_DIR
           terraform apply -auto-approve
