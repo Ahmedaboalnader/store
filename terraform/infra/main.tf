@@ -38,7 +38,7 @@ module "database" {
   region           = var.region
   project_id       = var.project_id
   db_user          = "app_user"
-  db_password      = "ChangeMe123"
+  db_password      = var.db_password
   db_name          = "app_db"
   vpc_self_link    = module.vpc.vpc_self_link
 }
