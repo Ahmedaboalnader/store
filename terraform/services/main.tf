@@ -58,6 +58,7 @@ module "frontend" {
   image        = var.frontend_image
   port_frontend = 80
 
-  backend_url = module.backend.backend_url  
+ backend_url = module.backend.backend_url  
+depends_on  = [module.backend] 
 }
 

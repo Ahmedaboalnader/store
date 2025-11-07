@@ -15,7 +15,7 @@ resource "google_cloud_run_service" "frontend_service" {
 
         env {
           name  = "REACT_APP_API_URL"
-          value = var.backend_url  # backend URL جاي من output الانفرا أو من main.tf
+          value = var.backend_url  
         }
       }
     }

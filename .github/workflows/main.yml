@@ -212,20 +212,10 @@ jobs:
             -var="db_user=$DB_USER" \
             -var="db_password=$DB_PASS"
 
-      # ---------------------------
-      # 7) Get backend URL after deploy
-      # ---------------------------
-      - name: Get backend URL
-        run: |
-          cd $SERVICES_DIR
-          terraform init -input=false
-          terraform refresh
-          BACKEND_URL=$(terraform output -raw backend_url 2>/dev/null || echo "")
-          echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
-          echo "Backend URL: $BACKEND_URL"
+    
 
       # ---------------------------
-      # 8) Final summary
+      # 7 Final summary
       # ---------------------------
       - name: Final output
         run: |

@@ -4,7 +4,7 @@ function App() {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
-    const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/products';
+    const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
     fetch(`${backendUrl}/products`)
       .then(res => res.json())
