@@ -29,6 +29,4 @@ output "db_user" {
 #   sensitive = true
 # }
 
-output "db_private_ip" {
-  value = google_sql_database_instance.db_instance.private_ip_address
-}
+
