@@ -211,8 +211,10 @@ jobs:
             -var="backend_image=$BACKEND_IMAGE" \
             -var="frontend_image=$FRONTEND_IMAGE" \
             -var="project_id=$GCP_PROJECT" \
-            -var="region=$GCP_REGION"
-
+            -var="region=$GCP_REGION" \
+            -var="db_name=$DB_NAME" \
+            -var="db_user=$DB_USER" \
+            -var="db_pass=$DB_PASS"
       # ---------------------------
       # 7) Get backend URL after deploy
       # ---------------------------
