@@ -9,6 +9,10 @@ on:
       - 'terraform/**'
   workflow_dispatch:
 
+concurrency:
+  group: terraform-deploy
+  cancel-in-progress: true   
+
 env:
   TF_DIR: terraform/infra
   SERVICES_DIR: terraform/services
