@@ -39,7 +39,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ">= 1.0.0, < 2.0.0"
+          terraform_version: "1.5.7"
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Detect changed paths
@@ -186,11 +186,11 @@ jobs:
 
       - name: Final output
         run: |
-          echo "============================"
+                    echo "============================"
           echo "✅ Deployment summary"
-          echo "Backend image: $BACKEND_IMAGE"
-          echo "Frontend image: $FRONTEND_IMAGE"
-          echo "Backend URL: $BACKEND_URL"
-          echo "Database IP: $DATABASE_IP"
-          echo "VPC Connector ID: $VPC_CONNECTOR_ID"
+          echo "Backend image: "$BACKEND_IMAGE""
+          echo "Frontend image: "$FRONTEND_IMAGE""
+          echo "Backend URL: "$BACKEND_URL""
+          echo "Database IP: "$DATABASE_IP""
+          echo "VPC Connector ID: "$VPC_CONNECTOR_ID""
           echo "============================
