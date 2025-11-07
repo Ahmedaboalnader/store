@@ -19,12 +19,15 @@ variable "frontend_image" {
 }
 
 variable "DATABASE_IP" {
-  default = data.terraform_remote_state.infra.outputs.db_private_ip
+  description = "Private IP of the database"
+  type        = string
 }
 
 variable "VPC_CONNECTOR_ID" {
-  default = data.terraform_remote_state.infra.outputs.backend_connector_id
+  description = "ID of the VPC connector"
+  type        = string
 }
+
 
 variable "zone" {
   description = "GCP zone for resources"
