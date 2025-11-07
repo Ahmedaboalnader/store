@@ -132,6 +132,7 @@ jobs:
         env:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
+          BACKEND_REPO: backend-repo
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
           docker build -t "$IMAGE" ./backend
@@ -146,6 +147,8 @@ jobs:
         env:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
+          FRONTEND_REPO: frontend-repo
+
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
           docker build -t "$IMAGE" ./frontend
