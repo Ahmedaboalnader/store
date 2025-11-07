@@ -193,4 +193,4 @@ jobs:
           echo "Backend URL: $BACKEND_URL"
           echo "Database IP: $DATABASE_IP"
           echo "VPC Connector ID: $VPC_CONNECTOR_ID"
-          echo "============================
+          echo "============================"

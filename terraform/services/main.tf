@@ -12,16 +12,6 @@ resource "google_project_iam_binding" "cloudsql_access" {
   ]
 }
 
-data "terraform_remote_state" "infra" {
-  backend = "remote"
-  config = {
-    organization = "ahmedaboalnder"
-    workspaces = {
-      name = "my-infra"
-    }
-  }
-}
-
 module "backend" {
   source                = "../modules/backend"
   region                = var.region
