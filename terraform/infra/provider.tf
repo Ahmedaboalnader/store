@@ -11,13 +11,7 @@ terraform {
   # Compatible with Terraform 1.x (workflow uses 1.13.0)
   required_version = ">= 1.0.0, < 2.0.0"
 
-  backend "remote" {
-    hostname = "app.terraform.io"
-    organization = "ahmedaboalnder"
-    workspaces {
-      name = "my-infra"
-    }
-  }
+
 }
 
 provider "google" {
