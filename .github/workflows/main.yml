@@ -116,8 +116,26 @@ jobs:
           terraform init -input=false -upgrade
 
       - name: Build & push backend image
+        id: build_backend
+        if: steps.changes.outputs.backend == 'true' || steps.changes.outputs.infra == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          REGION: ${{ secrets.GCP_REGION }}
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+          BACKEND_REPO: ${{ env.BACKEND_REPO }}
+          DB_HOST: ${{ env.DB_HOST }}
+          DB_USER: ${{ env.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ env.DB_NAME }}
+        run: |
+          cd $SERVICES_DIR
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
+          docker build --build-arg DB_SERVER_IP=${DB_HOST} -t "$IMAGE" ./backend
+          docker push "$IMAGE"
+          echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy backend (get URL)
         id: get_backend_url
-        if: steps.build_backend.conclusion == 'success'
+        if: steps.build_backend.conclusion == 'success' || steps.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
         env:
           DB_HOST: ${{ env.DB_HOST }}
           DB_USER: ${{ env.DB_USER }}
@@ -129,7 +147,6 @@ jobs:
           GCP_REGION: ${{ secrets.GCP_REGION }}
         run: |
           cd $SERVICES_DIR
-          # Temporarily apply only the backend to get its URL
           terraform apply -auto-approve -target=module.backend \
             -var="db_private_ip=$DB_HOST" \
             -var="db_user=$DB_USER" \
@@ -155,7 +172,7 @@ jobs:
           echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
 
       - name: Deploy All Services
-        if: steps.build_frontend.conclusion == 'success' || steps.build_backend.conclusion == 'success'
+        if: steps.build_frontend.conclusion == 'success' || steps.get_backend_url.conclusion == 'success'
         env:
           DB_HOST: ${{ env.DB_HOST }}
           DB_USER: ${{ env.DB_USER }}
