@@ -28,17 +28,11 @@ module "backend" {
 }
 
 module "frontend" {
-  source       = "../modules/frontend"
-  service_name = "frontend-service"
-  region       = var.region
-  image        = var.frontend_image
+  source        = "../modules/frontend"
+  service_name  = "frontend-service"
+  region        = var.region
+  image         = var.frontend_image
   port_frontend = 80
-
- backend_url = module.backend.backend_url  
-depends_on  = [module.backend] 
+  backend_url   = module.backend.backend_url
+  depends_on    = [module.backend]
 }
-
-output "backend_url" {
-  value = module.backend.backend_url
-}
-
