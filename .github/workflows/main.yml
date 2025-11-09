@@ -311,7 +311,7 @@ jobs:
   deploy-frontend:
     name: Deploy frontend service
     runs-on: ubuntu-latest
-    needs: [build-frontend]
+    needs: [build-frontend, deploy-backend]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -326,11 +326,6 @@ jobs:
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Terraform init
-        run: |
-          cd $SERVICES_DIR
-          terraform init -input=false -upgrade
 
       - name: Terraform init (frontend)
         run: |
