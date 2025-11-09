@@ -4,7 +4,7 @@ data "terraform_remote_state" "infra" {
   config = {
     organization = "ahmedaboalnder"
     workspaces = {
-      name = "infra"
+      name = "my-infra"
     }
   }
 }

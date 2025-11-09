@@ -38,3 +38,7 @@ module "frontend" {
 depends_on  = [module.backend] 
 }
 
+output "backend_url" {
+  value = module.backend.backend_url
+}
+
