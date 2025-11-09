@@ -29,6 +29,28 @@ pushd "$COMMON_DIR" >/dev/null
 echo "Initializing terraform in $COMMON_DIR"
 terraform init -input=false -upgrade
 
+# Ensure the correct Terraform Cloud workspace is selected (if configured)
+# Read workspace name from terraform/services/terraformbackend.tf if present,
+# otherwise fall back to 'default'. This ensures Terraform has a state
+# available for state operations when using remote backends.
+TF_BACKEND_FILE="$COMMON_DIR/../terraformbackend.tf"
+TF_WORKSPACE_NAME="default"
+if [ -f "$TF_BACKEND_FILE" ]; then
+  # extract name = "..." value
+  detected_name=$(grep -oP 'workspaces\s*\{[^}]*name\s*=\s*"\K[^"]+' "$TF_BACKEND_FILE" || true)
+  if [ -n "$detected_name" ]; then
+    TF_WORKSPACE_NAME="$detected_name"
+  fi
+fi
+
+echo "Selecting Terraform workspace: $TF_WORKSPACE_NAME"
+if terraform workspace select "$TF_WORKSPACE_NAME" >/dev/null 2>&1; then
+  echo "Workspace '$TF_WORKSPACE_NAME' selected"
+else
+  echo "Workspace '$TF_WORKSPACE_NAME' not found, creating it"
+  terraform workspace new "$TF_WORKSPACE_NAME" || true
+fi
+
 # Import service account
 SA_ID="projects/${PROJECT_ID}/serviceAccounts/cloud-run-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "Importing google_service_account.cloud_run_sa as $SA_ID"
