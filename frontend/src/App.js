@@ -13,17 +13,21 @@ function App() {
   useEffect(() => {
     const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-    // Check backend health
-    fetch(backendUrl)
+    // Check backend health and measure latency
+    const start = Date.now();
+    fetch(backendUrl, { method: 'GET' })
       .then(res => {
+        const latency = Date.now() - start;
         if (res.ok) {
-          setBackendStatus({ connected: true, message: 'Backend connected successfully! ✅' });
-          return res.text();
+          setBackendStatus({ connected: true, message: 'Backend connected successfully! ✅', url: backendUrl, latency });
+        } else {
+          setBackendStatus({ connected: false, message: `Backend responded with ${res.status}`, url: backendUrl, latency });
+          throw new Error('Backend responded with non-OK status');
         }
-        throw new Error('Backend not responding');
+        return res.text();
       })
       .then(() => {
-        // Fetch products
+        // Fetch products after confirming backend is up
         fetch(`${backendUrl}/products`)
           .then(res => res.json())
           .then(data => {
@@ -38,7 +42,7 @@ function App() {
       })
       .catch(err => {
         console.error('❌ Backend connection error:', err);
-        setBackendStatus({ connected: false, message: 'Backend connection failed! ❌' });
+        setBackendStatus(prev => ({ ...prev, connected: false, message: 'Backend connection failed! ❌', url: backendUrl }));
         setError('Could not connect to the backend.');
         setLoading(false);
       });
@@ -69,9 +73,12 @@ function App() {
         </Toolbar>
       </AppBar>
       <Container sx={{ py: 4 }}>
-        <Box sx={{ mb: 2 }}>
-          <Alert severity={backendStatus.connected ? 'success' : 'error'}>
-            {backendStatus.message || (backendStatus.connected ? 'Backend connected! ✅' : 'Backend connection failed! ❌')}
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+          <Alert severity={backendStatus.connected ? 'success' : 'error'} sx={{ width: '100%', maxWidth: 900 }}>
+            <strong>{backendStatus.connected ? 'Connected' : 'Disconnected'}</strong>
+            {backendStatus.url ? ` — ${backendStatus.url}` : ''}
+            {backendStatus.latency ? ` (latency: ${backendStatus.latency}ms)` : ''}
+            <div style={{ marginTop: 6 }}>{backendStatus.message}</div>
           </Alert>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
@@ -89,7 +96,7 @@ function App() {
           <Grid container spacing={4}>
             {products.map((product) => (
               <Grid item key={product.id} xs={12} sm={6} md={4}>
-                <Card>
+                <Card className="product-card">
                   <CardContent>
                     <Typography gutterBottom variant="h5" component="h2">
                       {product.name}
@@ -114,6 +121,9 @@ function App() {
             ))}
           </Grid>
         )}
+        <Box sx={{ mt: 6, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body2">© {new Date().getFullYear()} Online Store — demo connection between frontend and backend.</Typography>
+        </Box>
       </Container>
     </>
   );
