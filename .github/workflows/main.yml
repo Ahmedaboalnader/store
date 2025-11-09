@@ -137,6 +137,20 @@ jobs:
 
           # Read the pushed image digest from the local docker metadata so we
           # pass an immutable image reference to Terraform (image@sha256:...)
+          # Wait until the registry returns the image manifest (artifact registry
+          # may take a short time to become consistent). Use docker manifest inspect
+          # which queries the remote registry after docker auth was configured.
+          for j in 1 2 3 4 5; do
+            if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Waiting for registry to expose image manifest (attempt $j)" >&2
+            sleep $((j * 2))
+            if [ "$j" -eq 5 ]; then
+              echo "WARNING: image manifest not available after retries; continuing with tag reference" >&2
+            fi
+          done
+
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" 2>/dev/null || true)
           if [ -n "$DIGEST" ]; then
             echo "backend_image=$DIGEST" >> $GITHUB_OUTPUT
@@ -218,6 +232,28 @@ jobs:
 
           terraform apply -auto-approve tfplan
           echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
+
+      - name: Wait for backend to become healthy
+        run: |
+          cd $SERVICES_DIR/backend || true
+          BACKEND_URL="$(terraform output -raw backend_url 2>/dev/null || true)"
+          if [ -z "$BACKEND_URL" ]; then
+            echo "WARN: backend_url is empty after apply; skipping health checks" >&2
+            exit 0
+          fi
+
+          echo "Waiting for backend to respond at $BACKEND_URL"
+          for k in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -sf --max-time 5 "$BACKEND_URL" >/dev/null 2>&1; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Backend not ready yet (attempt $k), sleeping..."
+            sleep $((k * 3))
+          done
+
+          echo "ERROR: backend did not become healthy after retries" >&2
+          exit 1
 
   build-frontend:
     name: Build & push frontend image
