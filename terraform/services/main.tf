@@ -22,7 +22,9 @@ module "backend" {
   db_private_ip         = data.terraform_remote_state.infra.outputs.db_private_ip
   db_name               = data.terraform_remote_state.infra.outputs.db_name
   db_user               = data.terraform_remote_state.infra.outputs.db_user
-  db_password           = data.terraform_remote_state.infra.outputs.db_password
+  # db_password is sensitive and not exported from the infra workspace; pass
+  # it in via a variable from CI/workflow or secrets instead of reading remote state.
+  db_password           = var.db_password
   vpc_connector_id      = data.terraform_remote_state.infra.outputs.vpc_connector_id
   service_account_name  = google_service_account.cloud_run_sa.email
 }
