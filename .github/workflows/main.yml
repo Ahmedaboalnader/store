@@ -151,13 +151,8 @@ jobs:
             fi
           done
 
-          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" 2>/dev/null || true)
-          if [ -n "$DIGEST" ]; then
-            echo "backend_image=$DIGEST" >> $GITHUB_OUTPUT
-          else
-            # Fallback to tag if digest not available (should be rare)
-            echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
-          fi
+          # Always output the image tag as a fallback, even if digest is not available
+          echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
 
   import-common:
     name: Import common resources
