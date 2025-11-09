@@ -18,26 +18,37 @@ echo "Importing common resources for project: $PROJECT_ID (region: $REGION)"
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 COMMON_DIR="$ROOT_DIR/terraform/services/common"
+SERVICES_DIR="$ROOT_DIR/terraform/services"
 
 if [ ! -d "$COMMON_DIR" ]; then
   echo "ERROR: expected directory $COMMON_DIR to exist" >&2
   exit 1
 fi
 
-pushd "$COMMON_DIR" >/dev/null
+if [ ! -d "$SERVICES_DIR" ]; then
+  echo "ERROR: expected directory $SERVICES_DIR to exist" >&2
+  exit 1
+fi
 
-echo "Initializing terraform in $COMMON_DIR"
+# Initialize terraform in the services root so the backend configuration
+# (terraformbackend.tf) is included. If we init inside 'common' the parent
+# backend file won't be read and terraform will fall back to local state.
+pushd "$SERVICES_DIR" >/dev/null
+
+echo "Initializing terraform in $SERVICES_DIR"
 terraform init -input=false -upgrade
 
 # Ensure the correct Terraform Cloud workspace is selected (if configured)
-# Read workspace name from terraform/services/terraformbackend.tf if present,
-# otherwise fall back to 'default'. This ensures Terraform has a state
-# available for state operations when using remote backends.
-TF_BACKEND_FILE="$COMMON_DIR/../terraformbackend.tf"
+# Read workspace name from terraformbackend.tf if present, otherwise fall back
+# to 'default'. This ensures Terraform has a remote state available for imports.
+TF_BACKEND_FILE="$SERVICES_DIR/terraformbackend.tf"
 TF_WORKSPACE_NAME="default"
 if [ -f "$TF_BACKEND_FILE" ]; then
-  # extract name = "..." value
-  detected_name=$(grep -oP 'workspaces\s*\{[^}]*name\s*=\s*"\K[^"]+' "$TF_BACKEND_FILE" || true)
+  # extract name = "..." value (simple grep -P, fall back if not supported)
+  detected_name=$(grep -oP 'workspaces\s*\{[^}]*name\s*=\s*"\K[^"]+' "$TF_BACKEND_FILE" 2>/dev/null || true)
+  if [ -z "$detected_name" ]; then
+    detected_name=$(grep -oE 'name\s*=\s*"[^"]+"' "$TF_BACKEND_FILE" | sed -E 's/.*"([^"]+)".*/\1/' || true)
+  fi
   if [ -n "$detected_name" ]; then
     TF_WORKSPACE_NAME="$detected_name"
   fi
