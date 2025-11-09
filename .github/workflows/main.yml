@@ -178,11 +178,17 @@ jobs:
           DB_PASS: ${{ secrets.DB_PASS }}
         run: |
           cd $SERVICES_DIR
-          terraform apply -auto-approve -target=module.backend \
-            -var="project_id=${GCP_PROJECT}" \
-            -var="region=${GCP_REGION}" \
-            -var="backend_image=${BACKEND_IMAGE}" \
-            -var="db_password=${DB_PASS}"
+          # Build terraform -var arguments conditionally. Only include backend_image
+          # when it is non-empty to avoid overwriting the existing Cloud Run image
+          # with a null/empty value.
+          TF_VARS=( -var="project_id=${GCP_PROJECT}" -var="region=${GCP_REGION}" -var="db_password=${DB_PASS}" )
+          if [ -n "${BACKEND_IMAGE}" ]; then
+            TF_VARS+=( -var="backend_image=${BACKEND_IMAGE}" )
+          else
+            echo "BACKEND_IMAGE is empty; skipping -var=backend_image to avoid clearing the deployed image"
+          fi
+
+          terraform apply -auto-approve -target=module.backend "${TF_VARS[@]}"
           echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
 
   build-frontend:
