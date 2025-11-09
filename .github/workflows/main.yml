@@ -115,10 +115,35 @@ jobs:
           DB_PASS: ${{ secrets.DB_PASS }}
           DB_NAME: ${{ needs.infra.outputs.db_name }}
         run: |
+          if [ -z "${BACKEND_REPO}" ]; then
+            echo "ERROR: backend_repo is empty (infra outputs). Cannot build/push backend image." >&2
+            exit 1
+          fi
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
           docker build --build-arg DB_SERVER_IP=${DB_HOST} -t "$IMAGE" "$GITHUB_WORKSPACE/${{ env.BACKEND_DIR }}"
-          docker push "$IMAGE"
-          echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
+
+          # Push with retries (network flakiness can cause transient failures)
+          for i in 1 2 3; do
+            if docker push "$IMAGE"; then
+              break
+            fi
+            echo "docker push failed, retrying ($i)" >&2
+            sleep $((i * 3))
+            if [ "$i" -eq 3 ]; then
+              echo "ERROR: docker push failed after retries" >&2
+              exit 1
+            fi
+          done
+
+          # Read the pushed image digest from the local docker metadata so we
+          # pass an immutable image reference to Terraform (image@sha256:...)
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" 2>/dev/null || true)
+          if [ -n "$DIGEST" ]; then
+            echo "backend_image=$DIGEST" >> $GITHUB_OUTPUT
+          else
+            # Fallback to tag if digest not available (should be rare)
+            echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
+          fi
 
   import-common:
     name: Import common resources
@@ -164,9 +189,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Terraform init
+      - name: Terraform init (backend)
         run: |
-          cd $SERVICES_DIR
+          cd $SERVICES_DIR/backend
           terraform init -input=false -upgrade
 
       - name: Terraform apply (backend)
@@ -177,18 +202,21 @@ jobs:
           GCP_REGION: ${{ secrets.GCP_REGION }}
           DB_PASS: ${{ secrets.DB_PASS }}
         run: |
-          cd $SERVICES_DIR
-          # Build terraform -var arguments conditionally. Only include backend_image
-          # when it is non-empty to avoid overwriting the existing Cloud Run image
-          # with a null/empty value.
-          TF_VARS=( -var="project_id=${GCP_PROJECT}" -var="region=${GCP_REGION}" -var="db_password=${DB_PASS}" )
-          if [ -n "${BACKEND_IMAGE}" ]; then
-            TF_VARS+=( -var="backend_image=${BACKEND_IMAGE}" )
-          else
-            echo "BACKEND_IMAGE is empty; skipping -var=backend_image to avoid clearing the deployed image"
+          cd $SERVICES_DIR/backend
+
+          if [ -z "${BACKEND_IMAGE}" ]; then
+            echo "ERROR: BACKEND_IMAGE is empty. Build step failed or produced no image. Aborting deploy." >&2
+            exit 1
           fi
 
-          terraform apply -auto-approve -target=module.backend "${TF_VARS[@]}"
+          # Do a plan first and write the plan to a file; fail if plan fails.
+          terraform plan -out=tfplan \
+            -var="project_id=${GCP_PROJECT}" \
+            -var="region=${GCP_REGION}" \
+            -var="backend_image=${BACKEND_IMAGE}" \
+            -var="db_password=${DB_PASS}"
+
+          terraform apply -auto-approve tfplan
           echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
 
   build-frontend:
@@ -218,10 +246,31 @@ jobs:
           FRONTEND_REPO: ${{ needs.infra.outputs.frontend_repo }}
           BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
         run: |
+          if [ -z "${FRONTEND_REPO}" ]; then
+            echo "ERROR: frontend_repo is empty (infra outputs). Cannot build/push frontend image." >&2
+            exit 1
+          fi
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
           docker build --build-arg REACT_APP_API_URL=$BACKEND_URL -t "$IMAGE" "$GITHUB_WORKSPACE/${{ env.FRONTEND_DIR }}"
-          docker push "$IMAGE"
-          echo "frontend_image=$IMAGE" >> $GITHUB_OUTPUT
+
+          for i in 1 2 3; do
+            if docker push "$IMAGE"; then
+              break
+            fi
+            echo "docker push failed, retrying ($i)" >&2
+            sleep $((i * 3))
+            if [ "$i" -eq 3 ]; then
+              echo "ERROR: docker push failed after retries" >&2
+              exit 1
+            fi
+          done
+
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" 2>/dev/null || true)
+          if [ -n "$DIGEST" ]; then
+            echo "frontend_image=$DIGEST" >> $GITHUB_OUTPUT
+          else
+            echo "frontend_image=$IMAGE" >> $GITHUB_OUTPUT
+          fi
 
   deploy-frontend:
     name: Deploy frontend service
@@ -247,14 +296,30 @@ jobs:
           cd $SERVICES_DIR
           terraform init -input=false -upgrade
 
+      - name: Terraform init (frontend)
+        run: |
+          cd $SERVICES_DIR/frontend
+          terraform init -input=false -upgrade
+
       - name: Terraform apply (frontend)
         env:
           FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.frontend_image }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
+          BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
         run: |
-          cd $SERVICES_DIR
-          terraform apply -auto-approve -target=module.frontend \
+          cd $SERVICES_DIR/frontend
+          if [ -z "${FRONTEND_IMAGE}" ]; then
+            echo "ERROR: FRONTEND_IMAGE is empty. Build step failed or produced no image. Aborting deploy." >&2
+            exit 1
+          fi
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "ERROR: BACKEND_URL is empty. Backend deployment may have failed. Aborting frontend deploy." >&2
+            exit 1
+          fi
+
+          terraform apply -auto-approve \
             -var="project_id=${GCP_PROJECT}" \
             -var="region=${GCP_REGION}" \
-            -var="frontend_image=${FRONTEND_IMAGE}"
+            -var="frontend_image=${FRONTEND_IMAGE}" \
+            -var="backend_url=${BACKEND_URL}"
