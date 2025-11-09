@@ -123,7 +123,7 @@ jobs:
         id: outputs
         run: |
           cd terraform/services/common
-          terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT }}"
+          terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT }}" -var="region=${{ secrets.GCP_REGION }}"
           echo "service_account_email=$(terraform output -raw service_account_email)" >> $GITHUB_OUTPUT
 
 
