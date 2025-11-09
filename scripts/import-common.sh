@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# import-common.sh
+# Usage: ./scripts/import-common.sh <PROJECT_ID> [REGION]
+# This imports existing Google Service Account and IAM binding into the
+# terraform state for terraform/services/common.
+
+PROJECT_ID="${1:-}"
+REGION="${2:-us-central1}"
+
+if [ -z "$PROJECT_ID" ]; then
+  echo "Usage: $0 <PROJECT_ID> [REGION]" >&2
+  exit 2
+fi
+
+echo "Importing common resources for project: $PROJECT_ID (region: $REGION)"
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+COMMON_DIR="$ROOT_DIR/terraform/services/common"
+
+if [ ! -d "$COMMON_DIR" ]; then
+  echo "ERROR: expected directory $COMMON_DIR to exist" >&2
+  exit 1
+fi
+
+pushd "$COMMON_DIR" >/dev/null
+
+echo "Initializing terraform in $COMMON_DIR"
+terraform init -input=false -upgrade
+
+# Import service account
+SA_ID="projects/${PROJECT_ID}/serviceAccounts/cloud-run-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
+echo "Importing google_service_account.cloud_run_sa as $SA_ID"
+if terraform state list | grep -q '^google_service_account.cloud_run_sa$'; then
+  echo "google_service_account.cloud_run_sa already in state, skipping import"
+else
+  terraform import "google_service_account.cloud_run_sa" "$SA_ID"
+fi
+
+# Import project IAM binding for cloudsql client role
+IAM_ID="${PROJECT_ID}/roles/cloudsql.client"
+echo "Importing google_project_iam_binding.cloudsql_access as $IAM_ID"
+if terraform state list | grep -q '^google_project_iam_binding.cloudsql_access$'; then
+  echo "google_project_iam_binding.cloudsql_access already in state, skipping import"
+else
+  terraform import "google_project_iam_binding.cloudsql_access" "$IAM_ID"
+fi
+
+echo "Done. Run 'terraform plan -var=\"project_id=${PROJECT_ID}\" -var=\"region=${REGION}\"' to verify." 
+
+popd >/dev/null
