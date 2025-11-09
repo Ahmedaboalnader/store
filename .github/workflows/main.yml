@@ -119,6 +119,11 @@ jobs:
           rm -f .terraform.lock.hcl || true
           terraform init -input=false -upgrade
 
+      - name: Import existing common resources (if any)
+        run: |
+          # Import existing service account / IAM binding into Terraform state to avoid 409 on apply
+          bash scripts/import-common.sh ${{ secrets.GCP_PROJECT }} ${{ secrets.GCP_REGION }} || true
+
       - name: Terraform apply (common)
         id: outputs
         run: |
