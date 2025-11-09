@@ -65,21 +65,21 @@ fi
 # Import service account
 SA_ID="projects/${PROJECT_ID}/serviceAccounts/cloud-run-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
 echo "Importing google_service_account.cloud_run_sa as $SA_ID"
-if terraform state list -var="project_id=${PROJECT_ID}" -var="region=${REGION}" | grep -q '^google_service_account.cloud_run_sa$'; then
+if terraform state list | grep -q '^google_service_account.cloud_run_sa$'; then
   echo "google_service_account.cloud_run_sa already in state, skipping import"
 else
-  terraform import -var="project_id=${PROJECT_ID}" -var="region=${REGION}" "google_service_account.cloud_run_sa" "$SA_ID"
+  terraform import "google_service_account.cloud_run_sa" "$SA_ID"
 fi
 
 # Import project IAM binding for cloudsql client role
 IAM_ID="${PROJECT_ID}/roles/cloudsql.client"
 echo "Importing google_project_iam_binding.cloudsql_access as $IAM_ID"
-if terraform state list -var="project_id=${PROJECT_ID}" -var="region=${REGION}" | grep -q '^google_project_iam_binding.cloudsql_access$'; then
+if terraform state list | grep -q '^google_project_iam_binding.cloudsql_access$'; then
   echo "google_project_iam_binding.cloudsql_access already in state, skipping import"
 else
-  terraform import -var="project_id=${PROJECT_ID}" -var="region=${REGION}" "google_project_iam_binding.cloudsql_access" "$IAM_ID"
+  terraform import "google_project_iam_binding.cloudsql_access" "$IAM_ID"
 fi
 
-echo "Done. Run 'terraform plan -var=\"project_id=${PROJECT_ID}\" -var=\"region=${REGION}\"' to verify." 
+echo "Done. Run 'terraform plan' to verify." 
 
 popd >/dev/null

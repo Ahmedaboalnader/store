@@ -85,57 +85,10 @@ jobs:
           echo "backend_repo=$(terraform output -raw backend_repo)" >> $GITHUB_OUTPUT
           echo "frontend_repo=$(terraform output -raw frontend_repo)" >> $GITHUB_OUTPUT
 
-  common:
-    name: Services - common (service account)
-    runs-on: ubuntu-latest
-    needs: infra
-    outputs:
-      service_account_email: ${{ steps.outputs.outputs.service_account_email }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.5.7'
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN2 }}
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Configure gcloud
-        run: |
-          gcloud config set project ${{ secrets.GCP_PROJECT }}
-          gcloud config set run/region ${{ secrets.GCP_REGION }}
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Terraform init (common)
-        run: |
-          cd terraform/services/common
-          rm -rf .terraform || true
-          rm -f .terraform.lock.hcl || true
-          terraform init -input=false -upgrade
-
-      - name: Import existing common resources (if any)
-        run: |
-          # Import existing service account / IAM binding into Terraform state to avoid 409 on apply
-          bash scripts/import-common.sh ${{ secrets.GCP_PROJECT }} ${{ secrets.GCP_REGION }} || true
-
-      - name: Terraform apply (common)
-        id: outputs
-        run: |
-          cd terraform/services/common
-          terraform apply -auto-approve -var="project_id=${{ secrets.GCP_PROJECT }}" -var="region=${{ secrets.GCP_REGION }}"
-          echo "service_account_email=$(terraform output -raw service_account_email)" >> $GITHUB_OUTPUT
-
-
   build-backend:
     name: Build & push backend image
     runs-on: ubuntu-latest
-    needs: [infra, common]
+    needs: [infra]
     outputs:
       backend_image: ${{ steps.build.outputs.backend_image }}
     steps:
@@ -167,65 +120,10 @@ jobs:
           docker push "$IMAGE"
           echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
 
-  deploy-backend:
-    name: Deploy backend (terraform module.backend)
-    runs-on: ubuntu-latest
-    needs: [build-backend, infra, common]
-    outputs:
-      backend_url: ${{ steps.deploy.outputs.backend_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.5.7'
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN2 }}
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Terraform init (backend)
-        run: |
-          cd terraform/services/backend
-          rm -rf .terraform || true
-          rm -f .terraform.lock.hcl || true
-          terraform init -input=false -upgrade
-
-      - name: Apply backend module only
-        id: deploy
-        env:
-          DB_HOST: ${{ needs.infra.outputs.db_host }}
-          DB_USER: ${{ needs.infra.outputs.db_user }}
-          DB_PASS: ${{ secrets.DB_PASS }}
-          DB_NAME: ${{ needs.infra.outputs.db_name }}
-          BACKEND_IMAGE: ${{ needs.build-backend.outputs.backend_image }}
-          VPC_CONNECTOR_ID: ${{ needs.infra.outputs.vpc_connector_id }}
-          GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
-          GCP_REGION: ${{ secrets.GCP_REGION }}
-          SERVICE_ACCOUNT_EMAIL: ${{ needs.common.outputs.service_account_email }}
-        run: |
-          cd terraform/services/backend
-          terraform apply -auto-approve \
-            -var="project_id=$GCP_PROJECT" \
-            -var="region=$GCP_REGION" \
-            -var="service_name=store-backend" \
-            -var="db_private_ip=${DB_HOST}" \
-            -var="db_user=${DB_USER}" \
-            -var="db_password=${DB_PASS}" \
-            -var="db_name=${DB_NAME}" \
-            -var="backend_image=${BACKEND_IMAGE}" \
-            -var="vpc_connector_id=${VPC_CONNECTOR_ID}" \
-            -var="service_account_email=${SERVICE_ACCOUNT_EMAIL}"
-          echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
-
   build-frontend:
     name: Build & push frontend image
     runs-on: ubuntu-latest
-    needs: [deploy-backend, infra]
+    needs: [infra]
     outputs:
       frontend_image: ${{ steps.build_frontend.outputs.frontend_image }}
     steps:
@@ -247,17 +145,17 @@ jobs:
           REGION: ${{ secrets.GCP_REGION }}
           PROJECT: ${{ secrets.GCP_PROJECT }}
           FRONTEND_REPO: ${{ needs.infra.outputs.frontend_repo }}
-          BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+          BACKEND_URL: "https://store-backend-service-gcr-4f5v2x3a-uc.a.run.app" # Placeholder, will be replaced by terraform output
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${FRONTEND_REPO}/store-frontend:${GITHUB_SHA::8}"
           docker build --build-arg REACT_APP_API_URL=$BACKEND_URL -t "$IMAGE" "$GITHUB_WORKSPACE/${{ env.FRONTEND_DIR }}"
           docker push "$IMAGE"
           echo "frontend_image=$IMAGE" >> $GITHUB_OUTPUT
 
-  deploy-services:
-    name: Deploy all services (final apply)
+  import-common:
+    name: Import common resources
     runs-on: ubuntu-latest
-    needs: [build-frontend, deploy-backend]
+    needs: [infra]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -273,24 +171,46 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Terraform init (frontend)
+      - name: Import existing common resources (if any)
         run: |
-          cd terraform/services/frontend
-          rm -rf .terraform || true
-          rm -f .terraform.lock.hcl || true
+          bash scripts/import-common.sh ${{ secrets.GCP_PROJECT }} ${{ secrets.GCP_REGION }} || true
+
+  deploy-services:
+    name: Deploy all services (final apply)
+    runs-on: ubuntu-latest
+    needs: [build-frontend, build-backend, import-common]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.7'
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN2 }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Terraform init
+        run: |
+          cd $SERVICES_DIR
           terraform init -input=false -upgrade
 
-      - name: Apply frontend module
+      - name: Terraform apply
         env:
           FRONTEND_IMAGE: ${{ needs.build-frontend.outputs.frontend_image }}
-          BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+          BACKEND_IMAGE: ${{ needs.build-backend.outputs.backend_image }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
+          DB_PASS: ${{ secrets.DB_PASS }}
         run: |
-          cd terraform/services/frontend
+          cd $SERVICES_DIR
           terraform apply -auto-approve \
             -var="project_id=${GCP_PROJECT}" \
             -var="region=${GCP_REGION}" \
-            -var="service_name=frontend-service" \
+            -var="backend_image=${BACKEND_IMAGE}" \
             -var="frontend_image=${FRONTEND_IMAGE}" \
-            -var="backend_url=${BACKEND_URL}"
+            -var="db_password=${DB_PASS}"
