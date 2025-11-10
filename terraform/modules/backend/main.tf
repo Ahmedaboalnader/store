@@ -1,14 +1,3 @@
-# data "terraform_remote_state" "infra" {
-#   backend = "remote"
-
-#   config = {
-#     organization = "ahmedaboalnder"
-#     workspaces = {
-#       name = "my-infra"
-#     }
-#   }
-# }
-
 resource "google_cloud_run_v2_service" "backend_service" {
   name   = var.service_name
   location = var.region
@@ -40,10 +29,10 @@ resource "google_cloud_run_v2_service" "backend_service" {
 
     service_account = var.service_account_name
 
-    # vpc_access {
-    #   connector = var.vpc_connector_id
-    #   egress    = "ALL_TRAFFIC"
-    # }
+    vpc_access {
+      connector = var.vpc_connector_id
+      egress    = "ALL_TRAFFIC"
+    }
 
     scaling {
       min_instance_count = 0
@@ -61,7 +50,6 @@ resource "google_cloud_run_v2_service" "backend_service" {
 
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
   name = "projects/${var.project_id}/locations/${var.region}/services/${google_cloud_run_v2_service.backend_service.name}/iamMember/allUsers"
-  # service  = google_cloud_run_v2_service.backend_service.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
