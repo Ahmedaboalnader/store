@@ -30,6 +30,7 @@ jobs:
       vpc_connector_id: ${{ steps.tf_outputs.outputs.vpc_connector_id }}
       backend_repo: ${{ steps.tf_outputs.outputs.backend_repo }}
       frontend_repo: ${{ steps.tf_outputs.outputs.frontend_repo }}
+      service_account_email: ${{ steps.tf_outputs.outputs.service_account_email }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,7 +73,7 @@ jobs:
       - name: Terraform apply
         run: |
           cd $TF_DIR
-          terraform apply -auto-approve
+          terraform destroy -auto-approve
 
       - name: Read terraform outputs
         id: tf_outputs
@@ -84,6 +85,7 @@ jobs:
           echo "vpc_connector_id=$(terraform output -raw vpc_connector_id)" >> $GITHUB_OUTPUT
           echo "backend_repo=$(terraform output -raw backend_repo)" >> $GITHUB_OUTPUT
           echo "frontend_repo=$(terraform output -raw frontend_repo)" >> $GITHUB_OUTPUT
+          echo "service_account_email=$(terraform output -raw service_account_email)" >> $GITHUB_OUTPUT
 
   build-backend:
     name: Build & push backend image
@@ -162,7 +164,6 @@ jobs:
           done
 
           # Always output the image tag as a fallback, even if digest is not available
-          echo "DEBUG: IMAGE value before output: $IMAGE"
           echo "DEBUG: IMAGE value before output: $IMAGE"
           # Persist the image reference to both GITHUB_OUTPUT (for step-level debugging)
           # and to a small file which we'll upload as an artifact so downstream
@@ -321,7 +322,7 @@ jobs:
             -var="db_user=${{ needs.infra.outputs.db_user }}" \
             -var="db_password=${DB_PASS}" \
             -var="vpc_connector_id=${{ needs.infra.outputs.vpc_connector_id }}" \
-            -var="service_account_email=cloud-run-service-account@${GCP_PROJECT}.iam.gserviceaccount.com"
+            -var="service_account_email=${{ needs.infra.outputs.service_account_email }}"
 
           terraform apply -auto-approve tfplan
           echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
