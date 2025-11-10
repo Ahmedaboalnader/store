@@ -246,11 +246,15 @@ jobs:
       - name: Terraform apply (backend)
         id: deploy
         env:
-          BACKEND_IMAGE: ${{ needs.build-backend.outputs.backend_image }}
+          BACKEND_IMAGE: ${{ steps.read_backend_image.outputs.backend_image }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           DB_PASS: ${{ secrets.DB_PASS }}
         run: |
+          # Run terraform from the backend service directory so configuration
+          # files are available for planning/apply.
+          cd $SERVICES_DIR/backend
+
           # If the backend image variable is empty, try to fall back to the
           # currently deployed image on Cloud Run (so we don't overwrite with
           # an empty value). This makes deploy idempotent when build fails.
