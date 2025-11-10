@@ -35,6 +35,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+        with:
+          fetch-depth: 0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -253,6 +255,11 @@ jobs:
         working-directory: ${{ env.SERVICES_DIR }}/backend
         run: |
           # Terraform commands run in the service directory (working-directory)
+
+          # Debug: show working directory and files so we can detect missing .tf files
+          echo "DEBUG: pwd=$(pwd)"
+          echo "DEBUG: list current dir:"; ls -la
+          echo "DEBUG: list repo relative services dir:"; ls -la ../../ || true
 
           # If the backend image variable is empty, try to fall back to the
           # currently deployed image on Cloud Run (so we don't overwrite with
