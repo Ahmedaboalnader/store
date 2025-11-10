@@ -239,8 +239,8 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Terraform init (backend)
+        working-directory: ${{ env.SERVICES_DIR }}/backend
         run: |
-          cd $SERVICES_DIR/backend
           terraform init -input=false -upgrade
 
       - name: Terraform apply (backend)
@@ -250,10 +250,9 @@ jobs:
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           DB_PASS: ${{ secrets.DB_PASS }}
+        working-directory: ${{ env.SERVICES_DIR }}/backend
         run: |
-          # Run terraform from the backend service directory so configuration
-          # files are available for planning/apply.
-          cd $SERVICES_DIR/backend
+          # Terraform commands run in the service directory (working-directory)
 
           # If the backend image variable is empty, try to fall back to the
           # currently deployed image on Cloud Run (so we don't overwrite with
