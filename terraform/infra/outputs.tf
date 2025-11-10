@@ -33,6 +33,10 @@ output "db_user" {
 output "db_name" {
   value = module.database.db_name
 }
+
+output "service_account_email" {
+  value = google_service_account.cloud_run_sa.email
+}
 # output "db_password" {
 #   value     = module.database.db_pass
 # }

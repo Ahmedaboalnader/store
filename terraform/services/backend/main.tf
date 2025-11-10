@@ -11,6 +11,8 @@ module "backend" {
   db_password           = var.db_password
   vpc_connector_id      = var.vpc_connector_id
   service_account_name  = var.service_account_email
+  vpc_connector_id     = data.terraform_remote_state.infra.outputs.vpc_connector_id  
+  service_account_name = data.terraform_remote_state.infra.outputs.service_account_email  
 }
 
 output "backend_url" {

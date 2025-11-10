@@ -40,10 +40,10 @@ resource "google_cloud_run_v2_service" "backend_service" {
 
     service_account = var.service_account_name
 
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "ALL_TRAFFIC"
-    }
+    # vpc_access {
+    #   connector = var.vpc_connector_id
+    #   egress    = "ALL_TRAFFIC"
+    # }
 
     scaling {
       min_instance_count = 0
