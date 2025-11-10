@@ -89,8 +89,6 @@ jobs:
     name: Build & push backend image
     runs-on: ubuntu-latest
     needs: [import-common, infra]
-    outputs:
-      backend_image: ${{ steps.build.outputs.backend_image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,16 +113,28 @@ jobs:
           DB_PASS: ${{ secrets.DB_PASS }}
           DB_NAME: ${{ needs.infra.outputs.db_name }}
         run: |
+          echo "BACKEND_REPO from infra: ${BACKEND_REPO}"
           if [ -z "${BACKEND_REPO}" ]; then
             echo "ERROR: backend_repo is empty (infra outputs). Cannot build/push backend image." >&2
             exit 1
           fi
+          echo "REGION: ${REGION}"
+          echo "PROJECT: ${PROJECT}"
+          echo "BACKEND_REPO: ${BACKEND_REPO}"
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend:${GITHUB_SHA::8}"
+          echo "Constructed IMAGE: ${IMAGE}"
           docker build --build-arg DB_SERVER_IP=${DB_HOST} -t "$IMAGE" "$GITHUB_WORKSPACE/${{ env.BACKEND_DIR }}"
+          BUILD_EXIT_CODE=$?
+          echo "Docker build exit code: ${BUILD_EXIT_CODE}"
+          if [ "$BUILD_EXIT_CODE" -ne 0 ]; then
+            echo "ERROR: Docker build failed." >&2
+            exit 1
+          fi
 
           # Push with retries (network flakiness can cause transient failures)
           for i in 1 2 3; do
             if docker push "$IMAGE"; then
+              echo "Docker push successful on attempt $i."
               break
             fi
             echo "docker push failed, retrying ($i)" >&2
@@ -152,7 +162,20 @@ jobs:
           done
 
           # Always output the image tag as a fallback, even if digest is not available
-          echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "DEBUG: IMAGE value before output: $IMAGE"
+          echo "DEBUG: IMAGE value before output: $IMAGE"
+          # Persist the image reference to both GITHUB_OUTPUT (for step-level debugging)
+          # and to a small file which we'll upload as an artifact so downstream
+          # jobs can read it. Using an artifact avoids GitHub blocking job outputs
+          # when the job environment contains repository secrets.
+          echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT || true
+          echo "$IMAGE" > backend-image.txt
+
+      - name: Upload backend image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image
+          path: backend-image.txt
 
   import-common:
     name: Import common resources
@@ -187,6 +210,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download backend image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-image
+          path: ./artifacts
+
+      - name: Read backend image from artifact
+        id: read_backend_image
+        run: |
+          if [ -f ./artifacts/backend-image.txt ]; then
+            IMAGE=$(cat ./artifacts/backend-image.txt)
+            echo "Read backend image from artifact: $IMAGE"
+            echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT
+          else
+            echo "WARN: backend-image artifact not found; BACKEND_IMAGE will be empty" >&2
+          fi
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -211,8 +251,29 @@ jobs:
           GCP_REGION: ${{ secrets.GCP_REGION }}
           DB_PASS: ${{ secrets.DB_PASS }}
         run: |
-          cd $SERVICES_DIR/backend
-
+          # If the backend image variable is empty, try to fall back to the
+          # currently deployed image on Cloud Run (so we don't overwrite with
+          # an empty value). This makes deploy idempotent when build fails.
+          SERVICE_NAME="store-backend"
+          if [ -z "${BACKEND_IMAGE}" ]; then
+            echo "BACKEND_IMAGE is empty; attempting to discover currently deployed image from Cloud Run..."
+            EXISTING_IMAGE=""
+            # Try a few possible gcloud output paths (format differs by API version)
+            EXISTING_IMAGE=$(gcloud run services describe ${SERVICE_NAME} --region=${GCP_REGION} --project=${GCP_PROJECT} --format='value(status.template.containers[0].image)' 2>/dev/null || true)
+            if [ -z "$EXISTING_IMAGE" ]; then
+              EXISTING_IMAGE=$(gcloud run services describe ${SERVICE_NAME} --region=${GCP_REGION} --project=${GCP_PROJECT} --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
+            fi
+            if [ -z "$EXISTING_IMAGE" ]; then
+              EXISTING_IMAGE=$(gcloud run services describe ${SERVICE_NAME} --region=${GCP_REGION} --project=${GCP_PROJECT} --format='value(status.template.spec.containers[0].image)' 2>/dev/null || true)
+            fi
+            if [ -n "$EXISTING_IMAGE" ]; then
+              echo "Found existing deployed image: $EXISTING_IMAGE — using it for this apply"
+              BACKEND_IMAGE="$EXISTING_IMAGE"
+            else
+              echo "ERROR: could not determine existing deployed image and BACKEND_IMAGE is empty — aborting" >&2
+              exit 1
+            fi
+          fi
           if [ -z "${BACKEND_IMAGE}" ]; then
             echo "ERROR: BACKEND_IMAGE is empty. Build step failed or produced no image. Aborting deploy." >&2
             exit 1
