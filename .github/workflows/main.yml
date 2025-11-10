@@ -203,7 +203,7 @@ jobs:
   deploy-backend:
     name: Deploy backend service
     runs-on: ubuntu-latest
-    needs: [build-backend]
+    needs: [build-backend, infra]
     outputs:
       backend_url: ${{ steps.deploy.outputs.backend_url }}
     steps:
@@ -286,8 +286,14 @@ jobs:
           terraform plan -out=tfplan \
             -var="project_id=${GCP_PROJECT}" \
             -var="region=${GCP_REGION}" \
+            -var="service_name=store-backend" \
             -var="backend_image=${BACKEND_IMAGE}" \
-            -var="db_password=${DB_PASS}"
+            -var="db_private_ip=${{ needs.infra.outputs.db_host }}" \
+            -var="db_name=${{ needs.infra.outputs.db_name }}" \
+            -var="db_user=${{ needs.infra.outputs.db_user }}" \
+            -var="db_password=${DB_PASS}" \
+            -var="vpc_connector_id=${{ needs.infra.outputs.vpc_connector_id }}" \
+            -var="service_account_email=cloud-run-service-account@${GCP_PROJECT}.iam.gserviceaccount.com"
 
           terraform apply -auto-approve tfplan
           echo "backend_url=$(terraform output -raw backend_url)" >> $GITHUB_OUTPUT
