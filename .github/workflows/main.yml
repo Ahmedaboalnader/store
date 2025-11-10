@@ -35,8 +35,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-        with:
-          fetch-depth: 0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -170,8 +168,26 @@ jobs:
           # and to a small file which we'll upload as an artifact so downstream
           # jobs can read it. Using an artifact avoids GitHub blocking job outputs
           # when the job environment contains repository secrets.
-          echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT || true
-          echo "$IMAGE" > backend-image.txt
+          # Prefer an immutable digest reference (image@sha256:...) when possible.
+          DIGEST=""
+          # Try to read repo digest from local docker metadata
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" 2>/dev/null || true)
+          if [ -z "$DIGEST" ]; then
+            # As a fallback, ask Artifact Registry for the image digest (may require some propagation time)
+            if command -v gcloud >/dev/null 2>&1; then
+              AR_DIGEST=$(gcloud artifacts docker images describe "$IMAGE" --location=${REGION} --project=${PROJECT} --format='get(image_summary.digest)' 2>/dev/null || true)
+              if [ -n "$AR_DIGEST" ]; then
+                DIGEST="${REGION}-docker.pkg.dev/${PROJECT}/${BACKEND_REPO}/store-backend@${AR_DIGEST}"
+              fi
+            fi
+          fi
+          if [ -n "$DIGEST" ]; then
+            echo "backend_image=$DIGEST" >> $GITHUB_OUTPUT || true
+            echo "$DIGEST" > backend-image.txt
+          else
+            echo "backend_image=$IMAGE" >> $GITHUB_OUTPUT || true
+            echo "$IMAGE" > backend-image.txt
+          fi
 
       - name: Upload backend image artifact
         uses: actions/upload-artifact@v4
@@ -248,7 +264,6 @@ jobs:
       - name: Terraform apply (backend)
         id: deploy
         env:
-          BACKEND_IMAGE: ${{ steps.read_backend_image.outputs.backend_image }}
           GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           DB_PASS: ${{ secrets.DB_PASS }}
@@ -260,6 +275,12 @@ jobs:
           echo "DEBUG: pwd=$(pwd)"
           echo "DEBUG: list current dir:"; ls -la
           echo "DEBUG: list repo relative services dir:"; ls -la ../../ || true
+
+          # Read backend image from artifact (do not rely on step-level env expansion)
+          if [ -f ./artifacts/backend-image.txt ]; then
+            BACKEND_IMAGE=$(cat ./artifacts/backend-image.txt)
+          fi
+          echo "DEBUG: BACKEND_IMAGE='$BACKEND_IMAGE'"
 
           # If the backend image variable is empty, try to fall back to the
           # currently deployed image on Cloud Run (so we don't overwrite with
@@ -290,7 +311,7 @@ jobs:
           fi
 
           # Do a plan first and write the plan to a file; fail if plan fails.
-          terraform plan -out=tfplan \
+          terraform plan -input=false -out=tfplan \
             -var="project_id=${GCP_PROJECT}" \
             -var="region=${GCP_REGION}" \
             -var="service_name=store-backend" \
